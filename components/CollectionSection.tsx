@@ -18,7 +18,11 @@ export function CollectionSection() {
       try {
         const res = await fetch("/api/products?category=ss26");
         const data = await res.json();
-        setProducts(data);
+        if (Array.isArray(data)) {
+          setProducts(data);
+        } else {
+          console.error("Invalid data format received:", data);
+        }
       } catch (err) {
         console.error("Failed to fetch SS26 products:", err);
       } finally {

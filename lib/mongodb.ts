@@ -1,13 +1,4 @@
 import { MongoClient, ServerApiVersion } from "mongodb";
-import * as dotenv from "dotenv";
-import * as path from "path";
-
-import { fileURLToPath } from 'url';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Explicitly load .env from the project root
-dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
 
 if (!process.env.MONGODB_DATABASE_URL) {
     throw new Error('Invalid/Missing environment variable: "MONGODB_DATABASE_URL". Please check your .env file and restart your dev server.');
@@ -15,11 +6,9 @@ if (!process.env.MONGODB_DATABASE_URL) {
 
 const uri = process.env.MONGODB_DATABASE_URL;
 const options = {
-    serverApi: {
-        version: ServerApiVersion.v1,
-        strict: true,
-        deprecationErrors: true,
-    },
+    maxPoolSize: 10,
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000,
 };
 
 let client: MongoClient;

@@ -18,7 +18,11 @@ export function LatestWomenSection() {
       try {
         const res = await fetch("/api/products?category=latest");
         const data = await res.json();
-        setProducts(data);
+        if (Array.isArray(data)) {
+          setProducts(data);
+        } else {
+          console.error("Invalid data format received:", data);
+        }
       } catch (err) {
         console.error("Failed to fetch latest products:", err);
       } finally {
