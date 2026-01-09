@@ -7,36 +7,17 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useState } from "react";
-import { loadStripe } from "@stripe/stripe-js";
+import { useRouter } from "next/navigation";
 
 export function Cart() {
   const { cart, isOpen, toggleCart, removeFromCart, updateQuantity, total } = useCart();
   const { data: session } = useSession();
-  const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
+  const router = useRouter();
 
-  const handleCheckout = async () => {
+  const handleCheckout = () => {
     if (cart.length === 0) return;
-    
-    setIsCheckoutLoading(true);
-    try {
-      const res = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items: cart,
-          email: session?.user?.email || "",
-          userId: (session?.user as any)?.id || ""
-        }),
-      });
-
-      const { id } = await res.json();
-      const stripe = await loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
-      await stripe?.redirectToCheckout({ sessionId: id });
-    } catch (error) {
-      console.error("Checkout error:", error);
-    } finally {
-      setIsCheckoutLoading(false);
-    }
+    toggleCart();
+    router.push("/checkout");
   };
 
   return (
@@ -138,10 +119,9 @@ export function Cart() {
                   )}
                   <button 
                     onClick={handleCheckout}
-                    disabled={isCheckoutLoading}
-                    className="w-full bg-black text-white py-5 text-[10px] font-luxury tracking-[0.2em] hover:bg-zinc-800 transition-all uppercase rounded-full disabled:bg-zinc-400"
+                    className="w-full bg-black text-white py-5 text-[10px] font-luxury tracking-[0.2em] hover:bg-zinc-800 transition-all uppercase rounded-full"
                   >
-                    {isCheckoutLoading ? "Processing..." : "Continue to checkout"}
+                    PROCEED TO CHECKOUT
                   </button>
                   <p className="text-[9px] text-zinc-500 uppercase tracking-[0.15em] text-center px-4 leading-relaxed">
                     Complimentary delivery and returns on all orders.

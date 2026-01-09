@@ -1,7 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Heart, Search as SearchIcon } from "lucide-react";
-import { PRODUCTS } from "@/lib/data";
+import { X, Heart, Search as SearchIcon, Loader2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useWishlist } from "@/context/WishlistContext";
@@ -13,16 +12,35 @@ interface SearchOverlayProps {
 
 export function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
   const [query, setQuery] = useState("");
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   const { toggleWishlist, isInWishlist } = useWishlist();
   const trendingSearches = ["alma", "speedy", "keepall", "sneaker", "backpack"];
 
+  useEffect(() => {
+    if (isOpen) {
+      setLoading(true);
+      fetch("/api/products")
+        .then((res) => res.json())
+        .then((data) => {
+          setProducts(data);
+          setLoading(false);
+        })
+        .catch((err) => {
+          console.error("Search fetch error:", err);
+          setLoading(false);
+        });
+    }
+  }, [isOpen]);
+
   const filteredProducts = useMemo(() => {
     if (!query.trim()) return [];
-    return PRODUCTS.filter((p) => 
+    return products.filter((p) => 
       p.name.toLowerCase().includes(query.toLowerCase()) || 
-      p.category.toLowerCase().includes(query.toLowerCase())
+      p.category?.name?.toLowerCase().includes(query.toLowerCase()) ||
+      p.handle?.toLowerCase().includes(query.toLowerCase())
     );
-  }, [query]);
+  }, [query, products]);
 
   return (
     <AnimatePresence>
@@ -81,14 +99,19 @@ export function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
 
             {/* Results Section */}
             <div className="px-6 md:px-12 pb-20">
-              {query.trim() === "" ? (
+              {loading ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-4">
+                  <Loader2 className="animate-spin text-zinc-300" size={32} />
+                  <p className="text-[10px] uppercase font-luxury tracking-[0.2em] text-zinc-400">Loading Creations...</p>
+                </div>
+              ) : query.trim() === "" ? (
                 <div className="space-y-20">
                   <section>
                     <div className="mb-8 flex items-center justify-between border-b border-zinc-100 pb-4">
                       <h2 className="text-[11px] uppercase tracking-widest font-semibold text-zinc-900">Featured Suggestions</h2>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-x-6 gap-y-12">
-                      {PRODUCTS.slice(4, 10).map((product) => (
+                      {products.slice(4, 10).map((product) => (
                         <SearchProductCard 
                           key={product.id} 
                           product={product} 
@@ -147,6 +170,9 @@ function SearchProductCard({ product, onClose, toggleWishlist, isWishlisted }: {
   toggleWishlist: (p: any) => void,
   isWishlisted: boolean
 }) {
+  const productImage = typeof product.image === 'string' ? product.image : (product.images?.[0]?.url || '/placeholder.png');
+  const productCategory = product.category?.name || product.category || "Uncategorized";
+
   return (
     <div className="group cursor-pointer">
       <div className="relative aspect-4/5 bg-zinc-50 mb-4 overflow-hidden rounded-sm">
@@ -154,7 +180,7 @@ function SearchProductCard({ product, onClose, toggleWishlist, isWishlisted }: {
           className="absolute top-3 right-3 z-10 hover:scale-110 transition-transform p-1.5 bg-white/50 backdrop-blur-sm rounded-full"
           onClick={(e) => {
             e.preventDefault();
-            toggleWishlist(product);
+            toggleWishlist({ ...product, image: productImage });
           }}
         >
           <Heart 
@@ -163,10 +189,10 @@ function SearchProductCard({ product, onClose, toggleWishlist, isWishlisted }: {
             className={`transition-colors ${isWishlisted ? "fill-black text-black" : "text-zinc-600 hover:text-black"}`} 
           />
         </button>
-        <Link href={`/product/${product.id}`} onClick={onClose}>
+        <Link href={`/product/${product.handle || product.id}`} onClick={onClose}>
           <div className="w-full h-full transform transition-transform duration-700 group-hover:scale-110 relative flex items-center justify-center p-4">
             <Image 
-              src={product.image}
+              src={productImage}
               alt={product.name}
               fill
               className="object-contain"
@@ -175,12 +201,12 @@ function SearchProductCard({ product, onClose, toggleWishlist, isWishlisted }: {
           </div>
         </Link>
       </div>
-      <Link href={`/product/${product.id}`} onClick={onClose} className="space-y-1 block">
-         <p className="text-[9px] text-zinc-400 font-medium tracking-widest uppercase">{product.category}</p>
+      <Link href={`/product/${product.handle || product.id}`} onClick={onClose} className="space-y-1 block">
+         <p className="text-[9px] text-zinc-400 font-medium tracking-widest uppercase">{productCategory}</p>
          <h3 className="text-[10px] font-medium tracking-wide uppercase leading-tight line-clamp-1 group-hover:underline underline-offset-2">
           {product.name}
          </h3>
-         <p className="text-[10px] text-zinc-900 font-luxury">${product.price.toLocaleString()}</p>
+         <p className="text-[10px] text-zinc-900 font-luxury">${product.price?.toLocaleString()}</p>
       </Link>
     </div>
   );

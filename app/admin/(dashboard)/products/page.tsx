@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { 
   Package, 
   Search, 
@@ -18,7 +18,7 @@ import { toast } from "sonner";
 
 import { useSearchParams } from "next/navigation";
 
-export default function AdminProducts() {
+function ProductsContent() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -196,5 +196,17 @@ export default function AdminProducts() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AdminProducts() {
+  return (
+    <Suspense fallback={
+      <div className="h-screen flex items-center justify-center">
+        <Loader2 className="animate-spin text-zinc-300" size={32} />
+      </div>
+    }>
+      <ProductsContent />
+    </Suspense>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { 
   Settings, 
@@ -8,6 +8,7 @@ import {
   CreditCard, 
   ShieldCheck, 
   Bell, 
+  Megaphone,
   Globe, 
   HelpCircle,
   Link as LinkIcon,
@@ -17,7 +18,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-export default function AdminSettings() {
+function SettingsContent() {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -42,7 +43,15 @@ export default function AdminSettings() {
     // Notifications
     notifyOrder: true,
     notifyStock: true,
-    notifyReview: false
+    notifyReview: false,
+    // Announcement Bar
+    announcementEnabled: false,
+    announcementType: "normal", // normal, marquee, countdown
+    announcementText: "Welcome to our store!",
+    announcementDate: "", // for countdown
+    announcementBg: "#000000",
+    announcementColor: "#FFFFFF",
+    announcementLink: ""
   });
 
   useEffect(() => {
@@ -60,7 +69,14 @@ export default function AdminSettings() {
             sessionTimeout: data.sessionTimeout || "30",
             notifyOrder: data.notifyOrder ?? true,
             notifyStock: data.notifyStock ?? true,
-            notifyReview: data.notifyReview ?? false
+            notifyReview: data.notifyReview ?? false,
+            announcementEnabled: data.announcementEnabled || false,
+            announcementType: data.announcementType || "normal",
+            announcementText: data.announcementText || "Welcome to our store!",
+            announcementDate: data.announcementDate || "",
+            announcementBg: data.announcementBg || "#000000",
+            announcementColor: data.announcementColor || "#FFFFFF",
+            announcementLink: data.announcementLink || ""
         });
         setLoading(false);
       });
@@ -92,6 +108,7 @@ export default function AdminSettings() {
     { id: "payments", label: "Payments", icon: CreditCard },
     { id: "security", label: "Security", icon: ShieldCheck },
     { id: "notifications", label: "Notifications", icon: Bell },
+    { id: "announcement", label: "Announcement", icon: Megaphone },
   ];
 
   return (
@@ -298,6 +315,145 @@ export default function AdminSettings() {
                         </div>
                     )}
 
+                    {/* ANNOUNCEMENT TAB */}
+                    {activeTab === "announcement" && (
+                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                             <div className="flex items-center justify-between border-b border-zinc-100 pb-4">
+                                <h2 className="text-lg font-bold">Announcement Bar</h2>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[12px] font-bold text-zinc-500">{formData.announcementEnabled ? "Enabled" : "Disabled"}</span>
+                                    <div 
+                                        onClick={() => setFormData({...formData, announcementEnabled: !formData.announcementEnabled})}
+                                        className={`w-10 h-5 rounded-full p-1 cursor-pointer transition-colors ${formData.announcementEnabled ? "bg-green-500" : "bg-zinc-200"}`}
+                                    >
+                                        <div className={`w-3 h-3 rounded-full bg-white transition-transform ${formData.announcementEnabled ? "translate-x-5" : "translate-x-0"}`} />
+                                    </div>
+                                </div>
+                             </div>
+
+                             {/* Preview */}
+                             {formData.announcementEnabled && (
+                                 <div className="rounded-xl border border-zinc-100 overflow-hidden">
+                                    <div className="bg-zinc-100 px-4 py-2 text-[10px] uppercase font-bold text-zinc-500 border-b border-zinc-200">
+                                        Live Preview
+                                    </div>
+                                    <div 
+                                        style={{ backgroundColor: formData.announcementBg, color: formData.announcementColor }}
+                                        className="p-3 text-center text-[12px] font-bold uppercase tracking-widest"
+                                    >
+                                        {formData.announcementType === "marquee" ? (
+                                            <div className="animate-marquee whitespace-nowrap overflow-hidden">
+                                                <span className="mx-4">{formData.announcementText}</span>
+                                                <span className="mx-4">{formData.announcementText}</span>
+                                                <span className="mx-4">{formData.announcementText}</span>
+                                            </div>
+                                        ) : formData.announcementType === "countdown" ? (
+                                            <span>
+                                                {formData.announcementText} <span className="opacity-75 bg-white/20 px-2 py-0.5 rounded ml-2">02 : 14 : 35</span>
+                                            </span>
+                                        ) : (
+                                            formData.announcementText
+                                        )}
+                                    </div>
+                                 </div>
+                             )}
+
+                             <div>
+                                <label className="block text-[11px] uppercase tracking-widest text-zinc-500 mb-2 font-bold">Display Type</label>
+                                <div className="grid grid-cols-3 gap-3">
+                                    {["normal", "marquee", "countdown"].map((type) => (
+                                        <button
+                                            key={type}
+                                            type="button"
+                                            onClick={() => setFormData({...formData, announcementType: type})}
+                                            className={`px-4 py-3 rounded-xl border text-[12px] font-bold uppercase tracking-wider transition-all ${
+                                                formData.announcementType === type 
+                                                ? "bg-black text-white border-black" 
+                                                : "bg-white text-zinc-500 border-zinc-200 hover:border-black hover:text-black"
+                                            }`}
+                                        >
+                                            {type}
+                                        </button>
+                                    ))}
+                                </div>
+                             </div>
+
+                             <div>
+                                <label className="block text-[11px] uppercase tracking-widest text-zinc-500 mb-2 font-bold">Banner Text</label>
+                                <input 
+                                    type="text" 
+                                    value={formData.announcementText}
+                                    onChange={(e) => setFormData({...formData, announcementText: e.target.value})}
+                                    className="w-full bg-zinc-50 border border-zinc-100 px-4 py-3 rounded-xl text-[14px] focus:outline-none focus:border-black transition-all"
+                                    placeholder="e.g. Free Shipping on all orders over $1,500"
+                                />
+                             </div>
+
+                             {formData.announcementType === "countdown" && (
+                                 <div>
+                                    <label className="block text-[11px] uppercase tracking-widest text-zinc-500 mb-2 font-bold">Target Date & Time</label>
+                                    <input 
+                                        type="datetime-local" 
+                                        value={formData.announcementDate}
+                                        onChange={(e) => setFormData({...formData, announcementDate: e.target.value})}
+                                        className="w-full bg-zinc-50 border border-zinc-100 px-4 py-3 rounded-xl text-[14px] focus:outline-none focus:border-black transition-all"
+                                    />
+                                 </div>
+                             )}
+
+                             <div className="grid grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-[11px] uppercase tracking-widest text-zinc-500 mb-2 font-bold">Background Color</label>
+                                    <div className="flex items-center gap-3">
+                                        <input 
+                                            type="color" 
+                                            value={formData.announcementBg}
+                                            onChange={(e) => setFormData({...formData, announcementBg: e.target.value})}
+                                            className="w-10 h-10 rounded-lg border border-zinc-200 cursor-pointer p-0.5 bg-white"
+                                        />
+                                        <input 
+                                            type="text" 
+                                            value={formData.announcementBg}
+                                            onChange={(e) => setFormData({...formData, announcementBg: e.target.value})}
+                                            className="flex-1 bg-zinc-50 border border-zinc-100 px-4 py-2.5 rounded-xl text-[13px] font-mono focus:outline-none focus:border-black"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-[11px] uppercase tracking-widest text-zinc-500 mb-2 font-bold">Text Color</label>
+                                    <div className="flex items-center gap-3">
+                                        <input 
+                                            type="color" 
+                                            value={formData.announcementColor}
+                                            onChange={(e) => setFormData({...formData, announcementColor: e.target.value})}
+                                            className="w-10 h-10 rounded-lg border border-zinc-200 cursor-pointer p-0.5 bg-white"
+                                        />
+                                        <input 
+                                            type="text" 
+                                            value={formData.announcementColor}
+                                            onChange={(e) => setFormData({...formData, announcementColor: e.target.value})}
+                                            className="flex-1 bg-zinc-50 border border-zinc-100 px-4 py-2.5 rounded-xl text-[13px] font-mono focus:outline-none focus:border-black"
+                                        />
+                                    </div>
+                                </div>
+                             </div>
+
+                             <div>
+                                <label className="block text-[11px] uppercase tracking-widest text-zinc-500 mb-2 font-bold">Link URL (Optional)</label>
+                                <div className="relative">
+                                    <LinkIcon size={16} className="absolute left-4 top-3.5 text-zinc-400" />
+                                    <input 
+                                        type="text" 
+                                        value={formData.announcementLink}
+                                        onChange={(e) => setFormData({...formData, announcementLink: e.target.value})}
+                                        className="w-full bg-zinc-50 border border-zinc-100 pl-11 pr-4 py-3 rounded-xl text-[14px] focus:outline-none focus:border-black transition-all"
+                                        placeholder="https://..."
+                                    />
+                                </div>
+                             </div>
+                        </div>
+                    )}
+
                     <div className="pt-6 border-t border-zinc-100">
                         <button 
                             type="submit" 
@@ -313,5 +469,17 @@ export default function AdminSettings() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AdminSettings() {
+  return (
+    <Suspense fallback={
+        <div className="h-screen flex items-center justify-center">
+            <Loader2 className="animate-spin text-zinc-300" size={32} />
+        </div>
+    }>
+        <SettingsContent />
+    </Suspense>
   );
 }

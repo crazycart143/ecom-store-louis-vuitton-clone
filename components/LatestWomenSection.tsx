@@ -5,31 +5,31 @@ import { motion } from "framer-motion";
 import { Heart } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-
-const LATEST_WOMEN = [
-  {
-    id: "latest-w-1",
-    name: "Alma Trunk 20",
-    image: "/images/louis-vuitton-alma-trunk-20--M26784_PM2_Front view.avif"
-  },
-  {
-    id: "latest-w-2",
-    name: "LV Script Hoops PM",
-    image: "/images/louis-vuitton-lv-script-hoops-pm--M03527_PM2_Front view.avif"
-  },
-  {
-    id: "latest-w-3",
-    name: "Monogram Button Cardigan",
-    image: "/images/louis-vuitton-monogram-button-cardigan--FUKG11SH2900_PM2_Front view.avif"
-  },
-  {
-    id: "latest-w-4",
-    name: "Citizen Flat Ranger Boot",
-    image: "/images/louis-vuitton-citizen-flat-ranger-boot--ASQAU4PC02_PM2_Front view.avif"
-  }
-];
+import { useState, useEffect } from "react";
+import { useWishlist } from "@/context/WishlistContext";
 
 export function LatestWomenSection() {
+  const { toggleWishlist, isInWishlist } = useWishlist();
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const res = await fetch("/api/products?category=latest");
+        const data = await res.json();
+        setProducts(data);
+      } catch (err) {
+        console.error("Failed to fetch latest products:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProducts();
+  }, []);
+
+  if (loading) return null;
+  if (products.length === 0) return null;
   return (
     <section className="py-24 bg-white">
       <div className="container mx-auto px-6">
@@ -39,38 +39,52 @@ export function LatestWomenSection() {
         </header>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-20">
-          {LATEST_WOMEN.map((item, index) => (
-            <motion.div
-              key={item.id}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1, duration: 1, ease: [0.19, 1, 0.22, 1] }}
-              viewport={{ once: true }}
-              className="group"
-            >
-              <Link href={`/product/${item.id}`} className="cursor-pointer block">
-                <div className="aspect-4/5 w-full bg-linear-to-b from-[#EAEAEA] to-[#F9F9F9] relative overflow-hidden mb-6 flex items-center justify-center p-8">
-                  <div className="relative w-full h-full transition-transform duration-1000 group-hover:scale-105">
-                    <Image 
-                      src={item.image}
-                      alt={item.name}
-                      fill
-                      className="object-contain"
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-                    />
+          {products.map((item, index) => {
+            const productImage = item.images?.[0]?.url || item.image || "/placeholder.png";
+            const isWishlisted = isInWishlist(item.id);
+
+            return (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1, duration: 1, ease: [0.19, 1, 0.22, 1] }}
+                viewport={{ once: true }}
+                className="group"
+              >
+                <Link href={`/product/${item.handle || item.id}`} className="cursor-pointer block">
+                  <div className="aspect-4/5 w-full bg-linear-to-b from-[#EAEAEA] to-[#F9F9F9] relative overflow-hidden mb-6 flex items-center justify-center p-8">
+                    <div className="relative w-full h-full transition-transform duration-1000 group-hover:scale-105">
+                      <Image 
+                        src={productImage}
+                        alt={item.name}
+                        fill
+                        className="object-contain"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                      />
+                    </div>
+                    <button 
+                      className="absolute top-4 right-4 z-20 hover:scale-110 transition-transform p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-sm" 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        toggleWishlist({ ...item, image: productImage });
+                      }}
+                    >
+                      <Heart 
+                        size={18} 
+                        className={`transition-colors ${isWishlisted ? "fill-black text-black" : "text-zinc-400 hover:text-black"}`} 
+                      />
+                    </button>
                   </div>
-                  <button className="absolute top-4 right-4 z-20 hover:scale-110 transition-transform" onClick={(e) => e.preventDefault()}>
-                    <Heart size={20} className="text-zinc-400 hover:text-black transition-colors" />
-                  </button>
-                </div>
-                <div className="space-y-1">
-                  <h3 className="text-[11px] leading-relaxed tracking-wide text-black group-hover:underline underline-offset-4 decoration-zinc-300">
-                    {item.name}
-                  </h3>
-                </div>
-              </Link>
-            </motion.div>
-          ))}
+                  <div className="space-y-1">
+                    <h3 className="text-[11px] leading-relaxed tracking-wide text-black group-hover:underline underline-offset-4 decoration-zinc-300">
+                      {item.name}
+                    </h3>
+                  </div>
+                </Link>
+              </motion.div>
+            );
+          })}
         </div>
 
         <div className="flex justify-center">

@@ -46,7 +46,7 @@ export async function GET(req: Request) {
         ];
 
         if (categorySlug) {
-            pipeline.unshift({
+            pipeline.push({
                 $match: {
                     "category.slug": categorySlug
                 }

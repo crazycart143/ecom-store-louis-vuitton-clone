@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Loader2, ShieldCheck, AlertCircle, ChevronLeft } from "lucide-react";
-import Image from "next/image";
+import { Loader2, ShieldCheck, AlertCircle, ChevronLeft, Lock, Mail } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -31,10 +31,11 @@ export default function AdminLoginPage() {
 
       if (res?.error) {
         setError("Invalid administrative credentials");
-        toast.error("Access Denied");
+        toast.error("Access Denied", {
+          description: "Please verify your security keys."
+        });
         setLoading(false);
       } else {
-        // Successful login - redirect to dashboard
         toast.success("Welcome back, Administrator");
         router.push("/admin");
         router.refresh();
@@ -46,89 +47,161 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      {/* Background Ambience */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-900 via-zinc-950 to-black z-0" />
-      <div className="absolute top-0 w-full h-px bg-gradient-to-r from-transparent via-zinc-800 to-transparent opacity-20" />
-      <div className="absolute bottom-0 w-full h-px bg-gradient-to-r from-transparent via-zinc-800 to-transparent opacity-20" />
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden bg-black">
+      {/* Premium Background Image */}
+      <div className="absolute inset-0 z-0">
+        <div 
+          className="absolute inset-0 bg-cover bg-center brightness-[0.4] scale-[1.02]"
+          style={{ backgroundImage: 'url("/images/lv_admin_login_bg.png")' }} // Assuming manually naming it or using the generated one
+          // Note: In a real app, I'd move the generated image to public/images/
+        />
+        <div className="absolute inset-0 bg-linear-to-b from-black/60 via-transparent to-black/80" />
+      </div>
 
-      <div className="relative z-10 w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-1000">
+      {/* Decorative Light Glows */}
+      <div className="absolute top-[10%] left-[15%] w-96 h-96 bg-zinc-400/10 blur-[120px] rounded-full" />
+      <div className="absolute bottom-[10%] right-[15%] w-96 h-96 bg-zinc-500/10 blur-[120px] rounded-full" />
+
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 1, ease: [0.19, 1, 0.22, 1] }}
+        className="relative z-10 w-full max-w-md"
+      >
         {/* Brand Header */}
-        <div className="text-center mb-10 space-y-4">
-            <div className="w-16 h-16 bg-white mx-auto rounded-2xl flex items-center justify-center shadow-2xl shadow-white/10 mb-6">
-                <span className="font-serif font-black text-2xl text-black tracking-tighter">LV</span>
+        <div className="text-center mb-10">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="w-20 h-20 bg-white mx-auto rounded-[2.5rem] flex items-center justify-center shadow-[0_20px_40px_rgba(0,0,0,0.5)] border border-white/20 mb-8"
+          >
+            <span className="font-serif font-black text-3xl text-black tracking-tighter">LV</span>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <h1 className="text-4xl font-serif text-white tracking-[0.2em] uppercase mb-3">Maison Portal</h1>
+            <div className="flex items-center justify-center gap-3">
+              <div className="h-px w-8 bg-zinc-700" />
+              <p className="text-zinc-400 text-[10px] font-black uppercase tracking-[0.3em] py-1">Authorized Personnel Only</p>
+              <div className="h-px w-8 bg-zinc-700" />
             </div>
-            <h1 className="text-3xl font-serif text-white tracking-widest uppercase">Admin Portal</h1>
-            <p className="text-zinc-500 text-[13px] font-medium tracking-wide">Restricted Access • Staff Only</p>
+          </motion.div>
         </div>
 
         {/* Login Card */}
-        <div className="bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 rounded-3xl p-8 shadow-2xl">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            
-            <div className="space-y-4">
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5, duration: 1, ease: [0.19, 1, 0.22, 1] }}
+          className="bg-zinc-900/40 backdrop-blur-3xl border border-white/5 rounded-4xl p-8 md:p-10 shadow-[0_40px_100px_rgba(0,0,0,0.8)]"
+        >
+          <form onSubmit={handleSubmit} className="space-y-8">
+            <div className="space-y-6">
               <div className="space-y-2">
-                <label className="text-[11px] uppercase tracking-widest text-zinc-500 font-bold ml-1">Admin Email</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full bg-zinc-950/50 border border-zinc-800 text-white px-4 py-3.5 rounded-xl focus:outline-none focus:border-white/20 focus:ring-1 focus:ring-white/20 transition-all font-sans"
-                  placeholder="admin@louisvuitton.com"
-                  required
-                />
+                <label className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 font-bold ml-1">Admin Identity</label>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-600 transition-colors group-focus-within:text-white">
+                    <Mail size={16} strokeWidth={1.5} />
+                  </div>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full bg-black/40 border border-zinc-800/80 text-white pl-11 pr-4 py-4 rounded-2xl focus:outline-none focus:border-white/20 focus:ring-1 focus:ring-white/10 transition-all font-sans text-sm placeholder:text-zinc-700"
+                    placeholder="E-post address"
+                    required
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-[11px] uppercase tracking-widest text-zinc-500 font-bold ml-1">Secure Key</label>
-                <input
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full bg-zinc-950/50 border border-zinc-800 text-white px-4 py-3.5 rounded-xl focus:outline-none focus:border-white/20 focus:ring-1 focus:ring-white/20 transition-all font-sans"
-                  placeholder="••••••••"
-                  required
-                />
+                <div className="flex justify-between items-center px-1">
+                  <label className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 font-bold">Secure Key</label>
+                  <button type="button" className="text-[9px] uppercase tracking-widest text-zinc-600 hover:text-white transition-colors">Emergency Reset</button>
+                </div>
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-600 transition-colors group-focus-within:text-white">
+                    <Lock size={16} strokeWidth={1.5} />
+                  </div>
+                  <input
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="w-full bg-black/40 border border-zinc-800/80 text-white pl-11 pr-4 py-4 rounded-2xl focus:outline-none focus:border-white/20 focus:ring-1 focus:ring-white/10 transition-all font-sans text-sm placeholder:text-zinc-700"
+                    placeholder="••••••••"
+                    required
+                  />
+                </div>
               </div>
             </div>
 
-            {error && (
-              <div className="flex items-center gap-2 text-red-400 text-[13px] bg-red-400/10 p-3 rounded-xl border border-red-400/20">
-                <AlertCircle size={16} />
-                {error}
-              </div>
-            )}
+            <AnimatePresence mode="wait">
+              {error && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="flex items-center gap-3 text-red-400 text-[12px] bg-red-400/5 p-4 rounded-xl border border-red-400/10"
+                >
+                  <AlertCircle size={16} />
+                  {error}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-white text-black py-4 rounded-xl font-bold uppercase tracking-widest text-[12px] hover:bg-zinc-200 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_30px_rgba(255,255,255,0.2)] flex items-center justify-center gap-2 group"
+              className="w-full relative group overflow-hidden"
             >
-              {loading ? <Loader2 className="animate-spin" size={16} /> : <>
-                <ShieldCheck size={16} className="text-zinc-400 group-hover:text-black transition-colors" />
-                Authenticate
-              </>}
+              <div className="absolute inset-0 bg-white transition-transform duration-500 group-hover:scale-105" />
+              <div className="relative bg-white text-black py-4 rounded-2xl font-black uppercase tracking-[0.3em] text-[11px] flex items-center justify-center gap-3 transition-colors group-hover:bg-zinc-100 shadow-2xl active:scale-[0.98]">
+                {loading ? <Loader2 className="animate-spin" size={16} /> : (
+                  <>
+                    <ShieldCheck size={16} strokeWidth={2} />
+                    <span>Authenticate</span>
+                  </>
+                )}
+              </div>
             </button>
           </form>
-        </div>
+        </motion.div>
 
         {/* Footer */}
-        <div className="mt-8 text-center">
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8 }}
+          className="mt-12 text-center"
+        >
             <Link 
                 href="/" 
-                className="inline-flex items-center gap-2 text-zinc-600 hover:text-white transition-colors text-[12px] uppercase tracking-widest font-bold"
+                className="group inline-flex items-center gap-3 text-zinc-500 hover:text-white transition-all text-[11px] uppercase tracking-[0.3em] font-black"
             >
-                <ChevronLeft size={16} />
-                Return to Storefront
+                <div className="p-2 rounded-full border border-zinc-800 transition-colors group-hover:border-white/20 group-hover:bg-white/5">
+                  <ChevronLeft size={14} />
+                </div>
+                Return to Maison
             </Link>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
       
       {/* Security Badge */}
-      <div className="absolute bottom-6 flex items-center gap-2 text-zinc-700 opacity-50">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 0.3 }}
+        transition={{ delay: 1 }}
+        className="absolute bottom-10 flex items-center gap-3 text-zinc-500"
+      >
+        <div className="h-px w-6 bg-zinc-800" />
         <ShieldCheck size={14} />
-        <span className="text-[10px] uppercase tracking-widest font-bold">256-Bit SSL Encrypted Connection</span>
-      </div>
+        <span className="text-[10px] uppercase tracking-[0.3em] font-bold">Encrypted 256-Bit TLS</span>
+        <div className="h-px w-6 bg-zinc-800" />
+      </motion.div>
     </div>
   );
 }

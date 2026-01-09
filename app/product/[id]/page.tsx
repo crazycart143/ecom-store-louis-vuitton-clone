@@ -69,7 +69,7 @@ export default function ProductPage() {
 
   const productImage = typeof product.image === 'string' ? product.image : (product.images?.[0]?.url || '/placeholder.png');
   const productDetails = Array.isArray(product.details) ? product.details.map((d: any) => typeof d === 'string' ? d : d.content) : [];
-  const isWishlisted = isInWishlist(id);
+  const isWishlisted = isInWishlist(product._id || product.id);
 
   // Structured Data for SEO
   const jsonLd = {
@@ -138,15 +138,28 @@ export default function ProductPage() {
                       {product.name}
                     </h1>
                   </div>
-                  <button 
-                    onClick={() => toggleWishlist({ ...product, image: productImage })}
-                    className="p-3 bg-zinc-50 hover:bg-zinc-100 rounded-full transition-all duration-300"
+                  <motion.button 
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => toggleWishlist({ ...product, id: product._id || product.id, image: productImage })}
+                    className="p-3 bg-zinc-50 hover:bg-zinc-100 rounded-full transition-all duration-300 group"
                   >
-                    <Heart 
-                      size={20} 
-                      className={`transition-colors ${isWishlisted ? "fill-black text-black" : "text-zinc-400"}`} 
-                    />
-                  </button>
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={isWishlisted ? "active" : "inactive"}
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.8, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <Heart 
+                          size={20} 
+                          strokeWidth={1.5}
+                          className={`transition-colors ${isWishlisted ? "fill-black text-black" : "text-zinc-400 group-hover:text-black"}`} 
+                        />
+                      </motion.div>
+                    </AnimatePresence>
+                  </motion.button>
                 </div>
 
                 <p className="text-xl font-medium tracking-tight">
@@ -154,16 +167,20 @@ export default function ProductPage() {
                 </p>
 
                 <button 
-                  onClick={() => addToCart({
-                    id: product.id,
+                onClick={() => {
+                  const img = document.querySelector('img[alt="' + product.name + '"]');
+                  const rect = img?.getBoundingClientRect();
+                  addToCart({
+                    id: product._id || product.id,
                     name: product.name,
                     price: product.price,
-                    image: productImage
-                  })}
-                  className="w-full bg-black text-white py-5 rounded-full text-[11px] font-luxury tracking-[0.2em] uppercase hover:bg-zinc-800 transition-all duration-500 shadow-xl active:scale-95"
-                >
-                  Place in cart
-                </button>
+                    image: product.images?.[0]?.url || product.image
+                  }, rect);
+                }}
+                className="w-full bg-black text-white py-5 text-[11px] font-luxury tracking-[0.2em] uppercase hover:bg-zinc-800 transition-all duration-500 shadow-2xl active:scale-[0.98]"
+              >
+                Place in cart
+              </button>
               </motion.div>
 
               {/* Description */}

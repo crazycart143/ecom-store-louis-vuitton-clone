@@ -37,25 +37,27 @@ export function SidebarMenu({ isOpen, onClose }: SidebarMenuProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/40 z-[90] backdrop-blur-sm"
+            className="fixed inset-0 bg-black/40 z-[95] backdrop-blur-sm"
           />
           <motion.div
             initial={{ x: "-100%" }}
             animate={{ x: 0 }}
             exit={{ x: "-100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed left-0 top-0 h-full w-full max-w-[500px] bg-white z-[100] shadow-2xl overflow-y-auto"
+            className="fixed left-0 top-0 h-full w-full max-w-[500px] bg-white z-[100] shadow-2xl flex flex-col"
           >
-            <div className="p-8 flex flex-col min-h-full">
+            <div className="p-8 flex-shrink-0">
               <button 
                 onClick={onClose}
-                className="flex items-center gap-2 text-zinc-600 hover:text-black transition-colors mb-12 self-start"
+                className="flex items-center gap-2 text-zinc-600 hover:text-black transition-colors"
               >
                 <X size={20} />
                 <span className="text-sm font-medium">Close</span>
               </button>
+            </div>
 
-              <nav className="flex flex-col gap-6 mb-12 overflow-y-auto pr-4 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto px-8 pb-8">
+              <nav className="flex flex-col gap-6 mb-12">
                 {mainLinks.map((link) => (
                   <Link 
                     key={link} 
@@ -67,7 +69,7 @@ export function SidebarMenu({ isOpen, onClose }: SidebarMenuProps) {
                 ))}
               </nav>
 
-              <div className="mt-auto pt-8 border-t border-zinc-100 italic font-serif text-xl mb-8">
+              <div className="pt-8 border-t border-zinc-100 italic font-serif text-xl mb-8">
                 <Link href="#" className="hover:opacity-60 transition-opacity">Can we help you?</Link>
               </div>
 

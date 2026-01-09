@@ -1,7 +1,6 @@
 import { Header } from "@/components/Header";
 import Link from "next/link";
 import { Hero } from "@/components/Hero";
-import { Cart } from "@/components/Cart";
 import { Footer } from "@/components/Footer";
 import { CategoryGrid } from "@/components/CategoryGrid";
 import { VideoSection } from "@/components/VideoSection";
@@ -117,7 +116,6 @@ export default function Home() {
       </section>
 
       <Footer />
-      <Cart />
     </main>
   );
 }

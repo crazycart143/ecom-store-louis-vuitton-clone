@@ -20,6 +20,7 @@ import {
   Globe,
   Layers
 } from "lucide-react";
+import { AdminOnboarding } from "@/components/AdminOnboarding";
 
 export default function AdminLayout({
   children,
@@ -119,11 +120,13 @@ export default function AdminLayout({
         <nav className="flex-1 p-6 space-y-2 overflow-y-auto">
           {navigation.map((item) => {
             const isActive = pathname === item.href;
+            const tourId = item.name.toLowerCase();
             return (
               <Link
                 key={item.name}
                 href={item.href}
                 onClick={() => setIsMobileMenuOpen(false)}
+                data-tour={tourId}
                 className={`flex items-center gap-4 px-5 py-4 rounded-xl text-[12px] uppercase tracking-widest transition-all ${
                   isActive 
                   ? "bg-white text-black font-black shadow-[0_10px_20px_rgba(255,255,255,0.1)]" 
@@ -166,7 +169,7 @@ export default function AdminLayout({
             >
               <Menu size={24} />
             </button>
-            <div className="hidden md:block relative w-96 z-50">
+            <div className="hidden md:block relative w-96 z-50" data-tour="search">
                 <div className="flex items-center gap-4 bg-zinc-50 border border-zinc-100 px-5 py-2.5 rounded-xl w-full focus-within:bg-white focus-within:border-black transition-all">
                 <Search size={18} className="text-zinc-400" />
                 <input 
@@ -216,20 +219,21 @@ export default function AdminLayout({
                         <h3 className="font-bold text-[13px]">Notifications</h3>
                         <button className="text-[10px] bg-zinc-50 px-2 py-1 rounded-full text-zinc-500 hover:text-black transition-colors">Mark all read</button>
                     </div>
-                    <div className="p-8 flex flex-col items-center justify-center text-center space-y-3">
-                        <div className="w-12 h-12 bg-zinc-50 rounded-full flex items-center justify-center text-zinc-300">
-                            <Bell size={20} />
+                    
+                    {/* Empty State */}
+                    <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+                        <div className="w-16 h-16 bg-zinc-50 rounded-full flex items-center justify-center mb-4">
+                            <Bell size={24} className="text-zinc-300" strokeWidth={1.5} />
                         </div>
-                        <div>
-                            <p className="text-[13px] font-bold text-zinc-900">All caught up!</p>
-                            <p className="text-[11px] text-zinc-400 mt-1 max-w-[200px] mx-auto">No new notifications at the moment.</p>
-                        </div>
+                        <h4 className="font-bold text-[13px] text-zinc-900 mb-1">No new notifications</h4>
+                        <p className="text-[11px] text-zinc-500">You're all caught up!</p>
                     </div>
-                    <div className="p-2 bg-zinc-50 text-center">
+
+                    <div className="p-3 border-t border-zinc-50">
                         <Link 
-                            href="/admin/orders" 
+                            href="/admin/notifications"
                             onClick={() => setIsNotificationsOpen(false)}
-                            className="text-[11px] font-bold text-zinc-500 hover:text-black py-2 w-full block"
+                            className="block text-center text-[11px] font-bold text-zinc-600 hover:text-black transition-colors py-1"
                         >
                             View All Activity
                         </Link>
@@ -253,10 +257,13 @@ export default function AdminLayout({
         </header>
 
         {/* Dynamic Content */}
-        <div className="p-6 md:p-12 max-w-[1600px] mx-auto">
+        <div className="p-6 md:p-12 max-w-[1600px] mx-auto" data-tour="dashboard">
           {children}
         </div>
       </main>
+
+      {/* Onboarding Tour */}
+      <AdminOnboarding onRestartAction={() => setIsMobileMenuOpen(true)} />
     </div>
   );
 }

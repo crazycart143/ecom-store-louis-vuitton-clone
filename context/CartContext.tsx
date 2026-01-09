@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { FlyToCart } from '@/components/FlyToCart';
 
 interface CartItem {
   id: string;
@@ -9,9 +10,15 @@ interface CartItem {
   quantity: number;
 }
 
+interface FlyToCartData {
+  id: string;
+  image: string;
+  startRect: DOMRect;
+}
+
 interface CartContextType {
   cart: CartItem[];
-  addToCart: (product: any) => void;
+  addToCart: (product: any, rect?: DOMRect) => void;
   removeFromCart: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
@@ -26,6 +33,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [animatingItem, setAnimatingItem] = useState<FlyToCartData | null>(null);
 
   // Load cart from localStorage on mount
   useEffect(() => {
@@ -47,7 +55,15 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [cart, isLoaded]);
 
-  const addToCart = (product: any) => {
+  const addToCart = (product: any, rect?: DOMRect) => {
+    if (rect) {
+      setAnimatingItem({
+        id: product.id,
+        image: product.image,
+        startRect: rect
+      });
+    }
+
     setCart((prev) => {
       const existing = prev.find((item) => item.id === product.id);
       if (existing) {
@@ -59,7 +75,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       toast.success(`${product.name} added to bag`);
       return [...prev, { ...product, quantity: 1 }];
     });
-    setIsOpen(true);
+
+    // Wait for animation to finish before opening cart, or just open after a bit
+    if (!rect) {
+      setIsOpen(true);
+    }
   };
 
   const removeFromCart = (id: string) => {
@@ -89,6 +109,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return (
     <CartContext.Provider value={{ cart, addToCart, removeFromCart, updateQuantity, clearCart, total, isOpen, toggleCart }}>
       {children}
+      <FlyToCart 
+        item={animatingItem} 
+        onComplete={() => {
+          setAnimatingItem(null);
+          setIsOpen(true);
+        }} 
+      />
     </CartContext.Provider>
   );
 };

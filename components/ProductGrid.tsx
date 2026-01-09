@@ -77,7 +77,6 @@ export function ProductGrid() {
                            alt={product.name}
                            fill
                            className="object-contain"
-                           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
                          />
                       </div>
                       <button 
@@ -99,12 +98,15 @@ export function ProductGrid() {
                         <button 
                           onClick={(e) => {
                             e.preventDefault();
+                            const container = e.currentTarget.closest('.group');
+                            const img = container?.querySelector('img');
+                            const rect = img?.getBoundingClientRect();
                             addToCart({
                               id: product.id,
                               name: product.name,
                               price: product.price,
                               image: productImage
-                            });
+                            }, rect);
                           }}
                           className="w-full bg-white text-black py-4 text-[10px] font-luxury tracking-[0.2em] uppercase hover:bg-black hover:text-white transition-all duration-500 shadow-xl"
                         >
