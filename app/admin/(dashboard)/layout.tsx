@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { 
   LayoutDashboard, 
@@ -17,7 +17,8 @@ import {
   Menu,
   X,
   Image as ImageIcon,
-  Globe
+  Globe,
+  Layers
 } from "lucide-react";
 
 export default function AdminLayout({
@@ -26,16 +27,70 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<string[]>([]);
 
   const navigation = [
     { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
     { name: "Orders", href: "/admin/orders", icon: ShoppingBag },
     { name: "Products", href: "/admin/products", icon: Package },
+    { name: "Collections", href: "/admin/collections", icon: Layers },
     { name: "Customers", href: "/admin/customers", icon: Users },
     { name: "Media", href: "/admin/media", icon: ImageIcon },
     { name: "Settings", href: "/admin/settings", icon: Settings },
   ];
+
+  const routes: {[key: string]: string} = {
+    'dashboard': '/admin',
+    'overview': '/admin',
+    'products': '/admin/products',
+    'inventory': '/admin/products',
+    'orders': '/admin/orders',
+    'sales': '/admin/orders',
+    'customers': '/admin/customers',
+    'users': '/admin/customers',
+    'settings': '/admin/settings',
+    'configuration': '/admin/settings',
+    'payments': '/admin/settings?tab=payments',
+    'security': '/admin/settings?tab=security',
+    'notifications': '/admin/settings?tab=notifications',
+    'media': '/admin/media',
+    'images': '/admin/media',
+    'collections': '/admin/collections',
+    'categories': '/admin/collections'
+  };
+
+  const handleSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+        const query = (e.currentTarget.value).toLowerCase().trim();
+        if (!query) return;
+        
+        if (routes[query]) {
+            router.push(routes[query]);
+        } else if (query === 'logout') {
+            signOut({ callbackUrl: "/admin/login" });
+        } else {
+            router.push(`/admin/products?q=${encodeURIComponent(query)}`);
+        }
+        setSuggestions([]);
+        setSearchQuery("");
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    
+    if (query.trim().length > 1) {
+        const matches = Object.keys(routes).filter(key => key.includes(query.toLowerCase()));
+        setSuggestions(matches);
+    } else {
+        setSuggestions([]);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-zinc-50 flex">
@@ -99,7 +154,7 @@ export default function AdminLayout({
           </button>
         </div>
       </aside>
-
+      
       {/* Main Content */}
       <main className="flex-1 lg:ml-72 min-w-0">
         {/* Header */}
@@ -111,21 +166,77 @@ export default function AdminLayout({
             >
               <Menu size={24} />
             </button>
-            <div className="hidden md:flex items-center gap-4 bg-zinc-50 border border-zinc-100 px-5 py-2.5 rounded-xl w-80 focus-within:bg-white focus-within:border-black transition-all">
-              <Search size={18} className="text-zinc-400" />
-              <input 
-                type="text" 
-                placeholder="Search command..." 
-                className="bg-transparent border-none focus:outline-none text-[13px] w-full placeholder:text-zinc-400 font-medium"
-              />
+            <div className="hidden md:block relative w-96 z-50">
+                <div className="flex items-center gap-4 bg-zinc-50 border border-zinc-100 px-5 py-2.5 rounded-xl w-full focus-within:bg-white focus-within:border-black transition-all">
+                <Search size={18} className="text-zinc-400" />
+                <input 
+                    type="text" 
+                    value={searchQuery}
+                    onChange={handleInputChange}
+                    placeholder="Search command (e.g. 'payments')..." 
+                    onKeyDown={handleSearch}
+                    className="bg-transparent border-none focus:outline-none text-[13px] w-full placeholder:text-zinc-400 font-medium"
+                />
+                </div>
+                {/* Search Suggestions Dropdown */}
+                {suggestions.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl border border-zinc-100 shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-1">
+                        {suggestions.map((suggestion) => (
+                            <button
+                                key={suggestion}
+                                onClick={() => {
+                                    router.push(routes[suggestion]);
+                                    setSuggestions([]);
+                                    setSearchQuery("");
+                                }}
+                                className="w-full text-left px-5 py-3 text-[13px] hover:bg-zinc-50 transition-colors flex items-center justify-between group"
+                            >
+                                <span className="capitalize font-medium">{suggestion}</span>
+                                <span className="text-[10px] text-zinc-400 uppercase tracking-widest group-hover:text-black">Jump to</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
           </div>
           
-          <div className="flex items-center gap-4 md:gap-8">
-            <button className="text-zinc-400 hover:text-black transition-bounce relative p-2">
+          <div className="flex items-center gap-4 md:gap-8 relative">
+            <button 
+                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                className="text-zinc-400 hover:text-black transition-bounce relative p-2 outline-none"
+            >
               <Bell size={22} strokeWidth={1.5} />
-              <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white ring-2 ring-red-500/20"></span>
+              {/* Removed red dot since no notifications */}
             </button>
+            
+            {/* Notifications Dropdown */}
+            {isNotificationsOpen && (
+                <div className="absolute top-full right-0 mt-2 w-80 bg-white rounded-2xl border border-zinc-100 shadow-xl z-50 animate-in fade-in slide-in-from-top-2 overflow-hidden">
+                    <div className="p-4 border-b border-zinc-50 flex justify-between items-center">
+                        <h3 className="font-bold text-[13px]">Notifications</h3>
+                        <button className="text-[10px] bg-zinc-50 px-2 py-1 rounded-full text-zinc-500 hover:text-black transition-colors">Mark all read</button>
+                    </div>
+                    <div className="p-8 flex flex-col items-center justify-center text-center space-y-3">
+                        <div className="w-12 h-12 bg-zinc-50 rounded-full flex items-center justify-center text-zinc-300">
+                            <Bell size={20} />
+                        </div>
+                        <div>
+                            <p className="text-[13px] font-bold text-zinc-900">All caught up!</p>
+                            <p className="text-[11px] text-zinc-400 mt-1 max-w-[200px] mx-auto">No new notifications at the moment.</p>
+                        </div>
+                    </div>
+                    <div className="p-2 bg-zinc-50 text-center">
+                        <Link 
+                            href="/admin/orders" 
+                            onClick={() => setIsNotificationsOpen(false)}
+                            className="text-[11px] font-bold text-zinc-500 hover:text-black py-2 w-full block"
+                        >
+                            View All Activity
+                        </Link>
+                    </div>
+                </div>
+            )}
+
             <div className="flex items-center gap-3 pl-6 border-l border-zinc-100">
               <div className="hidden sm:block text-right">
                 <p className="text-[12px] font-black text-black uppercase tracking-tight">E-Commerce Manager</p>

@@ -16,10 +16,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { toast } from "sonner";
 
+import { useSearchParams } from "next/navigation";
+
 export default function AdminProducts() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
+  
+  const searchParams = useSearchParams();
+  const initialQuery = searchParams.get("q") || "";
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
 
   const fetchProducts = () => {
     fetch("/api/products")
@@ -33,6 +38,11 @@ export default function AdminProducts() {
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q) setSearchQuery(q);
+  }, [searchParams]);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this product? This will also remove all images and details.")) return;
