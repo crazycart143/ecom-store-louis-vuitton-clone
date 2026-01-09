@@ -1,6 +1,5 @@
-"use client";
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { toast } from 'sonner';
 
 interface CartItem {
   id: string;
@@ -15,6 +14,7 @@ interface CartContextType {
   addToCart: (product: any) => void;
   removeFromCart: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
+  clearCart: () => void;
   total: number;
   isOpen: boolean;
   toggleCart: () => void;
@@ -25,22 +25,49 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Load cart from localStorage on mount
+  useEffect(() => {
+    const savedCart = localStorage.getItem('lv_cart');
+    if (savedCart) {
+      try {
+        setCart(JSON.parse(savedCart));
+      } catch (e) {
+        console.error('Failed to parse cart', e);
+      }
+    }
+    setIsLoaded(true);
+  }, []);
+
+  // Save cart to localStorage on change
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem('lv_cart', JSON.stringify(cart));
+    }
+  }, [cart, isLoaded]);
 
   const addToCart = (product: any) => {
     setCart((prev) => {
       const existing = prev.find((item) => item.id === product.id);
       if (existing) {
+        toast.success(`Increased quantity of ${product.name}`);
         return prev.map((item) =>
           item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
         );
       }
+      toast.success(`${product.name} added to bag`);
       return [...prev, { ...product, quantity: 1 }];
     });
     setIsOpen(true);
   };
 
   const removeFromCart = (id: string) => {
+    const itemToRemove = cart.find(i => i.id === id);
     setCart((prev) => prev.filter((item) => item.id !== id));
+    if (itemToRemove) {
+      toast.info(`${itemToRemove.name} removed from bag`);
+    }
   };
 
   const updateQuantity = (id: string, quantity: number) => {
@@ -50,12 +77,17 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   };
 
+  const clearCart = () => {
+    setCart([]);
+    localStorage.removeItem('lv_cart');
+  };
+
   const total = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
   const toggleCart = () => setIsOpen(!isOpen);
 
   return (
-    <CartContext.Provider value={{ cart, addToCart, removeFromCart, updateQuantity, total, isOpen, toggleCart }}>
+    <CartContext.Provider value={{ cart, addToCart, removeFromCart, updateQuantity, clearCart, total, isOpen, toggleCart }}>
       {children}
     </CartContext.Provider>
   );

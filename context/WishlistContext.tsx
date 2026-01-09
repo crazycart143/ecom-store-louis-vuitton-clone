@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Product } from "@/lib/data";
+import { toast } from "sonner";
 
 interface WishlistContextType {
   wishlist: Product[];
@@ -15,10 +16,11 @@ const WishlistContext = createContext<WishlistContextType | undefined>(undefined
 
 export function WishlistProvider({ children }: { children: React.ReactNode }) {
   const [wishlist, setWishlist] = useState<Product[]>([]);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   // Load from local storage
   useEffect(() => {
-    const saved = localStorage.getItem("lv-wishlist");
+    const saved = localStorage.getItem("lv_wishlist");
     if (saved) {
       try {
         setWishlist(JSON.parse(saved));
@@ -26,22 +28,30 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
         console.error("Failed to parse wishlist", e);
       }
     }
+    setIsLoaded(true);
   }, []);
 
   // Save to local storage
   useEffect(() => {
-    localStorage.setItem("lv-wishlist", JSON.stringify(wishlist));
-  }, [wishlist]);
+    if (isLoaded) {
+      localStorage.setItem("lv_wishlist", JSON.stringify(wishlist));
+    }
+  }, [wishlist, isLoaded]);
 
   const addToWishlist = (product: Product) => {
     setWishlist((prev) => {
       if (prev.find((item) => item.id === product.id)) return prev;
+      toast.success(`${product.name} added to wishlist`);
       return [...prev, product];
     });
   };
 
   const removeFromWishlist = (productId: string) => {
+    const itemToRemove = wishlist.find(i => i.id === productId);
     setWishlist((prev) => prev.filter((item) => item.id !== productId));
+    if (itemToRemove) {
+      toast.info(`${itemToRemove.name} removed from wishlist`);
+    }
   };
 
   const isInWishlist = (productId: string) => {

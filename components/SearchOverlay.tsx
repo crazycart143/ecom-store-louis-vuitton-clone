@@ -1,8 +1,10 @@
-"use client";
-
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Heart } from "lucide-react";
+import { X, Heart, Search as SearchIcon } from "lucide-react";
 import { PRODUCTS } from "@/lib/data";
+import Image from "next/image";
+import Link from "next/link";
+import { useWishlist } from "@/context/WishlistContext";
 
 interface SearchOverlayProps {
   isOpen: boolean;
@@ -10,108 +12,176 @@ interface SearchOverlayProps {
 }
 
 export function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
-  const trendingSearches = ["neverfull", "speedy", "wallet", "pochette", "belt"];
+  const [query, setQuery] = useState("");
+  const { toggleWishlist, isInWishlist } = useWishlist();
+  const trendingSearches = ["alma", "speedy", "keepall", "sneaker", "backpack"];
+
+  const filteredProducts = useMemo(() => {
+    if (!query.trim()) return [];
+    return PRODUCTS.filter((p) => 
+      p.name.toLowerCase().includes(query.toLowerCase()) || 
+      p.category.toLowerCase().includes(query.toLowerCase())
+    );
+  }, [query]);
 
   return (
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
-          className="fixed inset-0 bg-white z-[110] overflow-y-auto"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+          className="fixed inset-0 bg-white z-110 overflow-y-auto"
         >
           {/* Fixed Close Button */}
           <button 
             onClick={onClose}
-            className="fixed top-8 right-8 z-[120] p-2 hover:opacity-50 transition-opacity text-black"
+            className="fixed top-8 right-8 z-120 p-2 hover:rotate-90 transition-transform duration-300 text-black"
           >
-            <X size={32} strokeWidth={1.5} />
+            <X size={32} strokeWidth={1} />
           </button>
 
           <div className="w-full flex flex-col pt-12">
             {/* Header / Logo */}
             <div className="text-center mb-12">
-              <h1 className="text-2xl md:text-3xl font-serif tracking-[0.3em] uppercase text-black">
-                Louis Vuitton
-              </h1>
+              <Link href="/" onClick={onClose}>
+                <h1 className="text-2xl md:text-3xl font-serif tracking-[0.3em] uppercase text-black">
+                  Louis Vuitton
+                </h1>
+              </Link>
             </div>
 
             {/* Search Input Section */}
             <div className="max-w-3xl mx-auto w-full mb-16 px-6">
               <div className="relative mb-6">
+                <SearchIcon className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
                 <input 
                   type="text" 
-                  placeholder="Search for a store" 
-                  className="w-full h-14 px-8 border border-zinc-200 rounded-full text-sm font-medium tracking-wide focus:outline-none focus:border-zinc-400 transition-colors"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search products, collections, etc." 
+                  className="w-full h-16 pl-16 pr-8 border border-zinc-200 rounded-full text-base font-light tracking-wide focus:outline-none focus:border-black transition-colors"
                   autoFocus
                 />
               </div>
               <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
                 <span className="text-[10px] uppercase font-luxury tracking-widest text-zinc-400">Trending Searches</span>
                 {trendingSearches.map((term) => (
-                  <button key={term} className="text-sm font-medium hover:underline lowercase tracking-tight">
+                  <button 
+                    key={term} 
+                    onClick={() => setQuery(term)}
+                    className="text-xs font-medium hover:underline lowercase tracking-tight text-zinc-600 hover:text-black transition-colors"
+                  >
                     {term}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Product Sections - Full Width Container */}
-            <div className="px-6 md:px-12 pb-20 space-y-20">
-              <section>
-                <div className="mb-8">
-                  <h2 className="text-sm font-medium tracking-wide text-zinc-800">Preorder Now Men Spring-Summer 2026</h2>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-x-2 gap-y-8">
-                  {/* Fill with more products or repeating to show the full width effect if needed, 
-                      but let's just make the existing ones look good */}
-                  {PRODUCTS.map((product) => (
-                    <div key={product.id} className="group cursor-pointer">
-                      <div className="relative aspect-[4/5] bg-zinc-50 mb-4 overflow-hidden">
-                        <button className="absolute top-3 right-3 z-10 hover:scale-110 transition-transform">
-                          <Heart size={18} strokeWidth={1} className="text-zinc-600 hover:text-black" />
-                        </button>
-                        <div className="w-full h-full transform transition-transform duration-700 group-hover:scale-105 bg-zinc-100 flex items-center justify-center">
-                          <span className="text-[10px] uppercase font-luxury tracking-widest text-zinc-300">Product</span>
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                         <p className="text-[10px] text-zinc-500 font-medium tracking-wide">Preorder Now</p>
-                         <h3 className="text-[11px] font-medium tracking-wide uppercase leading-tight line-clamp-2">{product.name}</h3>
-                      </div>
+            {/* Results Section */}
+            <div className="px-6 md:px-12 pb-20">
+              {query.trim() === "" ? (
+                <div className="space-y-20">
+                  <section>
+                    <div className="mb-8 flex items-center justify-between border-b border-zinc-100 pb-4">
+                      <h2 className="text-[11px] uppercase tracking-widest font-semibold text-zinc-900">Featured Suggestions</h2>
                     </div>
-                  ))}
-                </div>
-              </section>
-
-              <section>
-                <div className="mb-8">
-                  <h2 className="text-sm font-medium tracking-wide text-zinc-800">Most Coveted Gifts</h2>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-x-2 gap-y-8">
-                  {[...PRODUCTS].reverse().map((product) => (
-                    <div key={product.id} className="group cursor-pointer">
-                      <div className="relative aspect-[4/5] bg-zinc-50 mb-4 overflow-hidden">
-                        <button className="absolute top-3 right-3 z-10 hover:scale-110 transition-transform">
-                          <Heart size={18} strokeWidth={1} className="text-zinc-600 hover:text-black" />
-                        </button>
-                        <div className="w-full h-full transform transition-transform duration-700 group-hover:scale-105 bg-zinc-100 flex items-center justify-center">
-                          <span className="text-[10px] uppercase font-luxury tracking-widest text-zinc-300">Product</span>
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                         <h3 className="text-[11px] font-serif italic tracking-tight">{product.name}</h3>
-                      </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-x-6 gap-y-12">
+                      {PRODUCTS.slice(4, 10).map((product) => (
+                        <SearchProductCard 
+                          key={product.id} 
+                          product={product} 
+                          onClose={onClose} 
+                          toggleWishlist={toggleWishlist}
+                          isWishlisted={isInWishlist(product.id)}
+                        />
+                      ))}
                     </div>
-                  ))}
+                  </section>
                 </div>
-              </section>
+              ) : (
+                <section>
+                  <div className="mb-8 flex items-center justify-between border-b border-zinc-100 pb-4">
+                    <h2 className="text-[11px] uppercase tracking-widest font-semibold text-zinc-900">
+                      {filteredProducts.length} Results for "{query}"
+                    </h2>
+                  </div>
+                  
+                  {filteredProducts.length > 0 ? (
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-x-6 gap-y-12">
+                      {filteredProducts.map((product) => (
+                        <SearchProductCard 
+                          key={product.id} 
+                          product={product} 
+                          onClose={onClose}
+                          toggleWishlist={toggleWishlist}
+                          isWishlisted={isInWishlist(product.id)}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-20">
+                      <p className="text-zinc-500 font-light italic">No results found for "{query}".</p>
+                      <button 
+                        onClick={() => setQuery("")}
+                        className="mt-4 text-[10px] uppercase tracking-widest border-b border-black pb-0.5"
+                      >
+                        Clear Search
+                      </button>
+                    </div>
+                  )}
+                </section>
+              )}
             </div>
           </div>
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+function SearchProductCard({ product, onClose, toggleWishlist, isWishlisted }: { 
+  product: any, 
+  onClose: () => void,
+  toggleWishlist: (p: any) => void,
+  isWishlisted: boolean
+}) {
+  return (
+    <div className="group cursor-pointer">
+      <div className="relative aspect-4/5 bg-zinc-50 mb-4 overflow-hidden rounded-sm">
+        <button 
+          className="absolute top-3 right-3 z-10 hover:scale-110 transition-transform p-1.5 bg-white/50 backdrop-blur-sm rounded-full"
+          onClick={(e) => {
+            e.preventDefault();
+            toggleWishlist(product);
+          }}
+        >
+          <Heart 
+            size={14} 
+            strokeWidth={1.5} 
+            className={`transition-colors ${isWishlisted ? "fill-black text-black" : "text-zinc-600 hover:text-black"}`} 
+          />
+        </button>
+        <Link href={`/product/${product.id}`} onClick={onClose}>
+          <div className="w-full h-full transform transition-transform duration-700 group-hover:scale-110 relative flex items-center justify-center p-4">
+            <Image 
+              src={product.image}
+              alt={product.name}
+              fill
+              className="object-contain"
+              sizes="200px"
+            />
+          </div>
+        </Link>
+      </div>
+      <Link href={`/product/${product.id}`} onClick={onClose} className="space-y-1 block">
+         <p className="text-[9px] text-zinc-400 font-medium tracking-widest uppercase">{product.category}</p>
+         <h3 className="text-[10px] font-medium tracking-wide uppercase leading-tight line-clamp-1 group-hover:underline underline-offset-2">
+          {product.name}
+         </h3>
+         <p className="text-[10px] text-zinc-900 font-luxury">${product.price.toLocaleString()}</p>
+      </Link>
+    </div>
   );
 }

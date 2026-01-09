@@ -4,11 +4,13 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Menu, Search, ShoppingBag, User, Heart } from "lucide-react";
 import { useCart } from "@/context/CartContext";
+import { useSession } from "next-auth/react";
 import { SidebarMenu } from "./SidebarMenu";
 import { SearchOverlay } from "./SearchOverlay";
 import { CallUsSidebar } from "./CallUsSidebar";
 
 export function Header({ variant = "transparent" }: { variant?: "transparent" | "black" | "white" }) {
+  const { data: session } = useSession();
   const [isScrolled, setIsScrolled] = useState(false);
   const { toggleCart, cart } = useCart();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -81,9 +83,21 @@ export function Header({ variant = "transparent" }: { variant?: "transparent" | 
               </span>
             )}
           </button>
-          <button className="hidden md:flex items-center gap-2 hover:opacity-70 transition-opacity">
+          <Link 
+            href={session ? "/account" : "/login"} 
+            className="hidden md:flex items-center gap-2 hover:opacity-70 transition-opacity"
+          >
             <User size={20} />
-          </button>
+            {session && <span className="text-[10px] uppercase tracking-widest">{session.user?.name?.split(' ')[0]}</span>}
+          </Link>
+          {session?.user && session.user.role === "ADMIN" && (
+            <Link 
+              href="/admin" 
+              className="bg-black text-white px-3 py-1 rounded-full text-[9px] uppercase tracking-widest font-bold hover:bg-zinc-800 transition-all ml-2"
+            >
+              Admin
+            </Link>
+          )}
         </div>
       </div>
 

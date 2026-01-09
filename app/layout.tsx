@@ -13,12 +13,38 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "Louis Vuitton | Official Website",
-  description: "Experience the world of Louis Vuitton. Luxury fashion, leather goods, and high-end lifestyle.",
+  title: {
+    default: "Louis Vuitton | Official Website",
+    template: "%s | Louis Vuitton"
+  },
+  description: "Experience the world of Louis Vuitton. Discover the latest collections of luxury fashion, leather goods, and high-end lifestyle accessories.",
+  keywords: ["Louis Vuitton", "Luxury Fashion", "Designer Bags", "High-end Apparel"],
+  authors: [{ name: "Louis Vuitton Clone" }],
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "https://louis-vuitton-clone.vercel.app",
+    siteName: "Louis Vuitton Clone",
+    title: "Louis Vuitton | Official Website",
+    description: "Experience the world of Louis Vuitton. Luxury fashion, leather goods, and high-end lifestyle.",
+    images: [
+      {
+        url: "/images/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "Louis Vuitton",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Louis Vuitton | Official Website",
+    description: "Experience the world of Louis Vuitton. Luxury fashion, leather goods, and high-end lifestyle.",
+    images: ["/images/og-image.jpg"],
+  },
 };
 
-import { CartProvider } from "@/context/CartContext";
-import { WishlistProvider } from "@/context/WishlistContext";
+import { Providers } from "@/components/Providers";
 
 export default function RootLayout({
   children,
@@ -30,11 +56,9 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${playfair.variable} font-sans antialiased bg-white text-black`}
       >
-        <CartProvider>
-          <WishlistProvider>
-            {children}
-          </WishlistProvider>
-        </CartProvider>
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );
