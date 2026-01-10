@@ -20,6 +20,8 @@ import {
   Globe,
   Layers
 } from "lucide-react";
+import { useCart } from "@/context/CartContext";
+import { useWishlist } from "@/context/WishlistContext";
 import { AdminOnboarding } from "@/components/AdminOnboarding";
 
 export default function AdminLayout({
@@ -33,6 +35,8 @@ export default function AdminLayout({
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const { clearCart } = useCart();
+  const { clearWishlist } = useWishlist();
 
   const navigation = [
     { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
@@ -72,6 +76,8 @@ export default function AdminLayout({
         if (routes[query]) {
             router.push(routes[query]);
         } else if (query === 'logout') {
+            clearCart();
+            clearWishlist();
             signOut({ callbackUrl: "/admin/login" });
         } else {
             router.push(`/admin/products?q=${encodeURIComponent(query)}`);
@@ -149,7 +155,11 @@ export default function AdminLayout({
             View Store
           </Link>
           <button 
-            onClick={() => signOut({ callbackUrl: "/admin/login" })}
+            onClick={() => {
+              clearCart();
+              clearWishlist();
+              signOut({ callbackUrl: "/admin/login" });
+            }}
             className="flex items-center gap-4 px-5 text-zinc-500 hover:text-red-400 text-[12px] uppercase tracking-widest font-bold transition-colors w-full text-left"
           >
             <ChevronLeft size={20} className="rotate-180" />

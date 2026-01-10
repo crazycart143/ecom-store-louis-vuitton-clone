@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { useCart } from "@/context/CartContext";
+import { useWishlist } from "@/context/WishlistContext";
 import { Package, LogOut, ChevronRight, Loader2, User, MapPin, CreditCard, Settings, ShoppingBag } from "lucide-react";
 
 export default function AccountPage() {
@@ -13,6 +15,8 @@ export default function AccountPage() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("orders");
+  const { clearCart } = useCart();
+  const { clearWishlist } = useWishlist();
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -79,7 +83,11 @@ export default function AccountPage() {
               
               <div className="mt-8 pt-8 border-t border-zinc-100">
                 <button
-                  onClick={() => signOut({ callbackUrl: "/" })}
+                  onClick={() => {
+                    clearCart();
+                    clearWishlist();
+                    signOut({ callbackUrl: "/" });
+                  }}
                   className="w-full flex items-center gap-4 px-4 py-4 text-[11px] uppercase tracking-[0.2em] text-zinc-400 hover:text-red-500 transition-colors"
                 >
                   <LogOut size={16} strokeWidth={1.5} />

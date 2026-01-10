@@ -34,6 +34,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isOpen, setIsOpen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [animatingItem, setAnimatingItem] = useState<FlyToCartData | null>(null);
+  
+  const clearCart = () => {
+    setCart([]);
+    localStorage.removeItem('lv_cart');
+  };
 
   // Load cart from localStorage on mount
   useEffect(() => {
@@ -95,11 +100,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCart((prev) =>
       prev.map((item) => (item.id === id ? { ...item, quantity } : item))
     );
-  };
-
-  const clearCart = () => {
-    setCart([]);
-    localStorage.removeItem('lv_cart');
   };
 
   const total = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
