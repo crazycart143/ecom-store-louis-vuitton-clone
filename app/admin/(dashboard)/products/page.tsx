@@ -10,21 +10,26 @@ import {
   ExternalLink,
   Loader2,
   Trash2,
-  Edit
+  Edit,
+  ChevronDown,
+  X
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { toast } from "sonner";
-
 import { useSearchParams } from "next/navigation";
 
 function ProductsContent() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get("q") || "";
   const [searchQuery, setSearchQuery] = useState(initialQuery);
+  const [activeCategory, setActiveCategory] = useState("all");
+
+  const categories = ["all", ...Array.from(new Set(products.map((p: any) => p.category?.name).filter(Boolean)))];
 
   const fetchProducts = () => {
     fetch("/api/products")
@@ -61,8 +66,9 @@ function ProductsContent() {
   };
 
   const filteredProducts = products.filter((p: any) => 
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.handle.toLowerCase().includes(searchQuery.toLowerCase())
+    (p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    p.handle.toLowerCase().includes(searchQuery.toLowerCase())) &&
+    (activeCategory === "all" || p.category?.name === activeCategory)
   );
 
   return (
@@ -91,17 +97,47 @@ function ProductsContent() {
               placeholder="Search products..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-transparent border-none focus:outline-none text-[13px] w-full"
+              className="bg-transparent border-none focus:outline-none text-[13px] w-full font-medium"
             />
           </div>
-          <div className="flex gap-3">
-            <button className="flex items-center gap-2 px-4 py-3 border border-zinc-200 rounded-xl text-[13px] hover:bg-zinc-50 transition-all font-medium">
-              <Filter size={16} />
-              Status: All
+
+          <div className="relative">
+            <button 
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className="flex items-center gap-3 bg-white border border-zinc-200 px-5 py-3 rounded-xl text-[12px] font-black uppercase tracking-widest hover:bg-zinc-50 transition-all shadow-sm w-full md:w-64 justify-between"
+            >
+              <div className="flex items-center gap-2">
+                <Filter size={14} className="text-zinc-400" />
+                <span className="text-zinc-400">Category:</span>
+                <span className="text-black">{activeCategory}</span>
+              </div>
+              <ChevronDown size={14} className={`text-zinc-400 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
             </button>
-            <button className="flex items-center gap-2 px-4 py-3 border border-zinc-200 rounded-xl text-[13px] hover:bg-zinc-50 transition-all font-medium">
-              Category: All
-            </button>
+
+            {isDropdownOpen && (
+              <>
+                <div 
+                  className="fixed inset-0 z-10" 
+                  onClick={() => setIsDropdownOpen(false)}
+                />
+                <div className="absolute right-0 mt-2 w-full md:w-64 bg-white border border-zinc-100 rounded-2xl shadow-2xl py-2 z-20 animate-in fade-in zoom-in-95 duration-200 ring-1 ring-black/5">
+                  {categories.map((cat: any) => (
+                    <button 
+                      key={cat}
+                      onClick={() => {
+                        setActiveCategory(cat);
+                        setIsDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-5 py-2.5 text-[11px] font-black uppercase tracking-widest transition-colors flex items-center justify-between
+                        ${activeCategory === cat ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:bg-zinc-50 hover:text-black'}`}
+                    >
+                      {cat}
+                      {activeCategory === cat && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
 

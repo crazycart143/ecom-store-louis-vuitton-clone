@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { 
   Bell, 
   Check, 
@@ -70,6 +71,7 @@ function timeAgo(dateParam: string | Date) {
 }
 
 export default function AdminNotifications() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("all");
   const [allNotifications, setAllNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,16 +120,40 @@ export default function AdminNotifications() {
     }
   };
 
-  const handleMarkAsRead = async (notificationId: string) => {
-    try {
-      await fetch("/api/admin/notifications", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notificationId }),
-      });
-      fetchNotifications();
-    } catch (error) {
-      console.error("Failed to mark as read:", error);
+  const getNotificationLink = (notif: any) => {
+    switch (notif.type) {
+      case "new_order":
+      case "high_value_order":
+      case "payment_failed":
+      case "shipping_update":
+        return `/admin/orders/${notif.metadata?.orderId}`;
+      case "new_customer":
+        return `/admin/customers`;
+      case "low_stock":
+        return `/admin/products/${notif.metadata?.productId}`;
+      default:
+        return "/admin/notifications";
+    }
+  };
+
+  const handleNotificationClick = async (notif: any) => {
+    if (!notif.read) {
+        try {
+          await fetch("/api/admin/notifications", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ notificationId: notif.id }),
+          });
+          // Refresh local state or just optimistic update
+          setAllNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n));
+        } catch (error) {
+          console.error("Failed to mark as read:", error);
+        }
+    }
+    
+    const link = getNotificationLink(notif);
+    if (link !== "/admin/notifications") {
+        router.push(link);
     }
   };
 
@@ -221,8 +247,8 @@ export default function AdminNotifications() {
                       return (
                         <div 
                           key={notif.id} 
-                          onClick={() => !notif.read && handleMarkAsRead(notif.id)}
-                          className={`p-6 flex gap-4 hover:bg-zinc-50 transition-colors group cursor-pointer ${!notif.read ? "bg-blue-50/30" : ""}`}
+                          onClick={() => handleNotificationClick(notif)}
+                          className={`p-6 flex gap-4 hover:bg-zinc-50 transition-colors group cursor-pointer border-l-2 transition-all ${!notif.read ? "bg-blue-50/20 border-blue-500" : "border-transparent"}`}
                         >
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 mt-1 border 
                                 ${color === "blue" ? "bg-blue-50 text-blue-600 border-blue-100" : 

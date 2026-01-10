@@ -11,7 +11,7 @@ export async function PATCH(
     try {
         const session = await getServerSession(authOptions);
 
-        if (!session || session.user.role !== "ADMIN") {
+        if (!session || !["ADMIN", "MANAGER", "STAFF"].includes(session.user.role as string)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -34,6 +34,17 @@ export async function PATCH(
         if (result.matchedCount === 0) {
             return NextResponse.json({ error: "Order not found" }, { status: 404 });
         }
+
+        // Audit Log
+        await db.collection("AuditLog").insertOne({
+            type: "ORDER",
+            action: "FULFILLED_ORDER",
+            adminId: session.user.id,
+            adminName: session.user.name,
+            targetId: orderId,
+            targetName: `Order ${orderId.slice(-6).toUpperCase()}`,
+            timestamp: new Date(),
+        }).catch(err => console.error("Audit log failed:", err));
 
         return NextResponse.json({
             success: true,

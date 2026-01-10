@@ -8,8 +8,12 @@ import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronRight, Truck, ShieldCheck, RefreshCw, Loader2, Plus } from "lucide-react";
+import { ChevronRight, Truck, ShieldCheck, RefreshCw, Loader2, Plus, ArrowRight } from "lucide-react";
 import { loadStripe } from "@stripe/stripe-js";
+import { Elements } from "@stripe/react-stripe-js";
+import CheckoutForm from "@/components/CheckoutForm";
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 export default function CheckoutPage() {
   const { cart, total } = useCart();
@@ -20,6 +24,7 @@ export default function CheckoutPage() {
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
+    email: "",
     address: "",
     city: "",
     state: "",
@@ -68,18 +73,21 @@ export default function CheckoutPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleCheckout = async (e: React.FormEvent) => {
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [showPayment, setShowPayment] = useState(false);
+
+  const startPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (cart.length === 0) return;
 
     setIsLoading(true);
     try {
-      const res = await fetch("/api/checkout", {
+      const res = await fetch("/api/create-payment-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           items: cart,
-          email: session?.user?.email || "",
+          email: session?.user?.email || formData.email,
           userId: (session?.user as any)?.id || "",
           shippingDetails: formData,
         }),
@@ -87,27 +95,22 @@ export default function CheckoutPage() {
 
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.error || "Checkout failed");
+        throw new Error(errorData.error || "Failed to initialize payment");
       }
 
-      const { id, url } = await res.json();
+      const { clientSecret } = await res.json();
+      setClientSecret(clientSecret);
+      setShowPayment(true);
       
-      // If Stripe returns a URL, we can redirect directly
-      if (url) {
-        window.location.href = url;
-        return;
-      }
+      // Scroll to payment section
+      setTimeout(() => {
+        const element = document.getElementById("payment-section");
+        element?.scrollIntoView({ behavior: "smooth" });
+      }, 100);
 
-      // Fallback to client-side redirection if URL is missing
-      const stripe = await loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
-      if (stripe) {
-        await (stripe as any).redirectToCheckout({ sessionId: id });
-      } else {
-        throw new Error("Stripe failed to load");
-      }
     } catch (error) {
-      console.error("Checkout error:", error);
-      alert("Something went wrong with the checkout. Please try again.");
+      console.error("Payment init error:", error);
+      alert("Something went wrong. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -207,7 +210,7 @@ export default function CheckoutPage() {
                 </div>
               )}
 
-              <form onSubmit={handleCheckout} className="space-y-12">
+              <form onSubmit={startPayment} className="space-y-12">
                 {/* Shipping Section */}
                 <section className="space-y-6">
                   <div className="flex items-center gap-4 border-b border-zinc-100 pb-4">
@@ -241,6 +244,21 @@ export default function CheckoutPage() {
                       />
                     </div>
                   </div>
+
+                  {!session && (
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase tracking-widest text-zinc-500 font-medium ml-1">Email Address</label>
+                      <input 
+                        required={!session}
+                        type="email" 
+                        name="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        placeholder="email@example.com" 
+                        className="w-full px-5 py-4 bg-white border border-zinc-100 rounded-xl text-sm focus:border-black outline-none transition-all shadow-xs"
+                      />
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <label className="text-[10px] uppercase tracking-widest text-zinc-500 font-medium ml-1">Address</label>
@@ -309,43 +327,59 @@ export default function CheckoutPage() {
                 </section>
 
                 {/* Payment Section */}
-                <section className="space-y-6">
+                <section id="payment-section" className="space-y-6 pt-6">
                   <div className="flex items-center gap-4 border-b border-zinc-100 pb-4">
-                    <span className="w-8 h-8 rounded-full bg-zinc-100 text-zinc-500 flex items-center justify-center text-xs font-bold">2</span>
+                    <span className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${showPayment ? "bg-black text-white" : "bg-zinc-100 text-zinc-500"}`}>2</span>
                     <h2 className="text-xs uppercase tracking-[0.2em] font-bold">Payment Method</h2>
                   </div>
                   
-                  <div className="p-6 bg-white border border-zinc-100 rounded-2xl flex items-center gap-4 shadow-xs">
-                    <div className="w-5 h-5 rounded-full border-4 border-black shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">Stripe (Credit/Debit Card)</p>
-                      <p className="text-[10px] text-zinc-400 uppercase tracking-widest mt-0.5">Secure payment via Stripe</p>
+                  {!showPayment ? (
+                    <div className="p-12 border border-dashed border-zinc-200 rounded-2xl flex flex-col items-center justify-center text-center space-y-4">
+                      <div className="w-12 h-12 rounded-full bg-zinc-50 flex items-center justify-center text-zinc-300">
+                        <ShieldCheck size={24} />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-zinc-400">Payment details will appear once shipping is confirmed</p>
+                        <p className="text-[10px] uppercase tracking-widest text-zinc-400">Secure checkout powered by Stripe</p>
+                      </div>
+                      
+                      <button 
+                        type="submit"
+                        disabled={isLoading}
+                        className="mt-4 px-12 py-4 bg-black text-white text-[10px] font-bold uppercase tracking-widest rounded-full hover:bg-zinc-800 transition-all flex items-center gap-2 disabled:bg-zinc-300"
+                      >
+                       {isLoading ? <Loader2 size={14} className="animate-spin" /> : <>Confirm Shipping <ArrowRight size={14} /></>}
+                      </button>
                     </div>
-                    <div className="flex gap-1">
-                      {/* Placeholder for card icons */}
-                      <div className="w-8 h-5 bg-zinc-100 rounded-sm" />
-                      <div className="w-8 h-5 bg-zinc-100 rounded-sm" />
-                      <div className="w-8 h-5 bg-zinc-100 rounded-sm" />
+                  ) : (
+                    <div className="p-8 bg-white border border-black rounded-2xl shadow-xl animate-in fade-in slide-in-from-bottom-4 duration-700">
+                      {clientSecret && (
+                        <Elements 
+                          stripe={stripePromise} 
+                          options={{ 
+                            clientSecret,
+                            appearance: {
+                              theme: 'stripe',
+                              variables: {
+                                colorPrimary: '#000000',
+                                borderRadius: '12px',
+                                fontFamily: 'inherit',
+                              }
+                            }
+                          }}
+                        >
+                          <CheckoutForm 
+                            total={total} 
+                            items={cart} 
+                            email={session?.user?.email || ""}
+                            shippingDetails={formData}
+                            onSuccess={() => {}} 
+                          />
+                        </Elements>
+                      )}
                     </div>
-                  </div>
+                  )}
                 </section>
-
-                <div className="pt-6">
-                  <button 
-                    disabled={isLoading}
-                    type="submit"
-                    className="w-full lg:w-max px-16 bg-black text-white py-5 text-[11px] font-luxury tracking-[0.2em] uppercase hover:bg-zinc-800 transition-all duration-500 shadow-2xl active:scale-[0.98] rounded-full flex items-center justify-center gap-3 disabled:bg-zinc-400"
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="animate-spin" size={16} />
-                        Processing...
-                      </>
-                    ) : (
-                      "Confirm & Proceed to Pay"
-                    )}
-                  </button>
-                </div>
               </form>
             </div>
 

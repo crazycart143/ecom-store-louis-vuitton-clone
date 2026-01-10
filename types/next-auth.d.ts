@@ -7,6 +7,10 @@ declare module "next-auth" {
             id: string;
             role: string;
         } & DefaultSession["user"];
+        isImpersonating?: boolean;
+        originalAdminId?: string;
+        originalAdminName?: string;
+        originalAdminEmail?: string;
     }
 
     interface User extends DefaultUser {
@@ -18,5 +22,10 @@ declare module "next-auth/jwt" {
     interface JWT {
         id: string;
         role: string;
+        isImpersonating?: boolean;
+        originalAdminId?: string;
+        originalAdminName?: string;
+        originalAdminEmail?: string;
+        originalAdminRole?: string;
     }
 }

@@ -7,11 +7,13 @@ import { WishlistProvider } from "@/context/WishlistContext";
 import { SmoothScroll } from "./SmoothScroll";
 import { Toaster } from "sonner";
 import AnnouncementBar from "./AnnouncementBar";
+import ImpersonationBar from "./ImpersonationBar";
 import { Cart } from "./Cart";
 
 export const Providers = ({ children }: { children: ReactNode }) => {
   return (
     <SessionProvider>
+      <ImpersonationBar />
       <CartProvider>
         <WishlistProvider>
           <AnnouncementBar />

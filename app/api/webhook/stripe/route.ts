@@ -24,76 +24,64 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: `Webhook Error: ${error.message}` }, { status: 400 });
     }
 
-    if (event.type === "checkout.session.completed") {
-        const session = event.data.object as Stripe.Checkout.Session;
-        console.log(`[Webhook] Processing session ${session.id} for user ${session.metadata?.userId}`);
+    if (event.type === "checkout.session.completed" || event.type === "payment_intent.succeeded") {
+        const isSession = event.type === "checkout.session.completed";
+        const session = isSession ? (event.data.object as Stripe.Checkout.Session) : null;
+        const paymentIntent = !isSession ? (event.data.object as Stripe.PaymentIntent) : null;
 
-        const userId = session.metadata?.userId;
-        const orderItems = JSON.parse(session.metadata?.orderItems || "[]");
+        const metadata = isSession ? session?.metadata : paymentIntent?.metadata;
+        const userId = metadata?.userId;
+        const orderItems = JSON.parse(metadata?.orderItems || "[]");
+        const customerEmail = isSession ? session?.customer_details?.email : (paymentIntent?.receipt_email || metadata?.email);
+        const amountTotal = isSession ? session?.amount_total : paymentIntent?.amount;
+
+        console.log(`[Webhook] Processing ${event.type}: ${isSession ? session?.id : paymentIntent?.id} for user ${userId}`);
 
         const client = await clientPromise;
         const db = client.db();
 
-
         try {
-            // Extract and sanitize address with fallback logic
-            const shippingDetails = (session as any).shipping_details;
-            const billingDetails = session.customer_details;
+            // Extract shipping details
+            const stripeShipping = isSession ? (session as any)?.shipping_details : (paymentIntent as any)?.shipping;
+            const customerName = stripeShipping?.name || (isSession ? session?.customer_details?.name : null) || "Customer";
+            const stripeAddress = stripeShipping?.address || (isSession ? session?.customer_details?.address : null);
 
-            console.log("[Webhook] Full shipping_details:", JSON.stringify(shippingDetails, null, 2));
-            console.log("[Webhook] Full customer_details:", JSON.stringify(billingDetails, null, 2));
-
-            const shippingAddress = shippingDetails?.address;
-            const billingAddress = billingDetails?.address;
-            const customerName = shippingDetails?.name || billingDetails?.name || "Customer";
-
-            console.log("[Webhook] Extracted shipping address:", JSON.stringify(shippingAddress));
-            console.log("[Webhook] Extracted billing address:", JSON.stringify(billingAddress));
-            console.log("[Webhook] Customer name:", customerName);
-
-            // Prefer shipping address if it has at least line1, otherwise try billing
-            const finalAddress = (shippingAddress && shippingAddress.line1)
-                ? shippingAddress
-                : (billingAddress && billingAddress.line1)
-                    ? billingAddress
-                    : shippingAddress || billingAddress;
-
-            let addressString = "Address not provided";
             let dbAddress = null;
+            let addressString = "Address not provided";
 
-            if (finalAddress) {
-                const line1 = finalAddress.line1;
-                const line2 = finalAddress.line2;
-                const city = finalAddress.city;
-                const state = finalAddress.state;
-                const postal_code = finalAddress.postal_code;
-                const country = finalAddress.country;
-
-                const cityStateZip = [city, state, postal_code].filter(Boolean).join(", ");
-
-                addressString = [line1, line2, cityStateZip, country]
-                    .filter(part => part && part.trim() !== "")
-                    .join("\n");
-
+            if (stripeAddress && stripeAddress.line1) {
                 dbAddress = {
                     name: customerName,
-                    line1,
-                    line2,
-                    city,
-                    state,
-                    postal_code,
-                    country
+                    line1: stripeAddress.line1,
+                    line2: stripeAddress.line2 || "",
+                    city: stripeAddress.city,
+                    state: stripeAddress.state,
+                    postal_code: stripeAddress.postal_code,
+                    country: stripeAddress.country
                 };
 
-                console.log("[Webhook] Final dbAddress to save:", JSON.stringify(dbAddress, null, 2));
-            } else {
-                console.warn("[Webhook] ⚠️ No valid address found in session!");
+                const cityStateZip = [stripeAddress.city, stripeAddress.state, stripeAddress.postal_code].filter(Boolean).join(", ");
+                addressString = [stripeAddress.line1, stripeAddress.line2, cityStateZip, stripeAddress.country]
+                    .filter(part => part && part.toString().trim() !== "")
+                    .join("\n");
+            } else if (metadata?.shippingDetails) {
+                // Fallback to metadata if stripe shipping is missing (sometimes happens with manual PI)
+                const sd = JSON.parse(metadata.shippingDetails);
+                dbAddress = {
+                    name: `${sd.firstName} ${sd.lastName}`,
+                    line1: sd.address,
+                    city: sd.city,
+                    state: sd.state,
+                    postal_code: sd.zipCode,
+                    country: sd.country === "United States" ? "US" : sd.country
+                };
+                addressString = `${sd.address}\n${sd.city}, ${sd.state} ${sd.zipCode}\n${sd.country}`;
             }
 
             const orderResult = await db.collection("Order").insertOne({
-                userId: userId || null,
-                email: session.customer_details?.email || "",
-                total: (session.amount_total || 0) / 100,
+                userId: userId ? new ObjectId(userId) : null,
+                email: customerEmail || "",
+                total: (amountTotal || 0) / 100,
                 status: "PAID",
                 shippingAddress: dbAddress,
                 fulfillment: "UNFULFILLED",
@@ -117,9 +105,7 @@ export async function POST(req: Request) {
                 console.log(`[Webhook] Inserted ${orderItems.length} items`);
             }
 
-            // 4. Send Confirmation Email
-            // Using addressString already defined above which handles nulls gracefully
-
+            // Send Confirmation Email
             const orderDate = new Date().toLocaleDateString('en-US', {
                 weekday: 'long',
                 year: 'numeric',
@@ -128,37 +114,36 @@ export async function POST(req: Request) {
             });
 
             await sendOrderConfirmationEmail(
-                session.customer_details?.email || "",
-                session.customer_details?.name || "Valued Client",
+                customerEmail || "",
+                customerName,
                 orderId.toString(),
-                (session.amount_total || 0) / 100,
+                (amountTotal || 0) / 100,
                 orderItems,
                 addressString,
                 orderDate
             );
 
-            // 5. Create Admin Notifications
-            const orderTotal = (session.amount_total || 0) / 100;
-            const customerEmail = session.customer_details?.email || "Unknown";
-
-            // Always create new order notification
+            // Create Admin Notifications
+            const orderTotal = (amountTotal || 0) / 100;
             await NotificationHelpers.newOrder(
                 orderId.toString(),
-                customerEmail,
+                customerEmail || "Unknown",
                 orderTotal
             );
 
-            // Create high-value order notification if > $2000
             if (orderTotal > 2000) {
                 await NotificationHelpers.highValueOrder(
                     orderId.toString(),
-                    customerEmail,
+                    customerEmail || "Unknown",
                     orderTotal
                 );
             }
+
         } catch (dbError) {
-            console.error("[Webhook] Database error:", dbError);
-            return NextResponse.json({ error: "Database error" }, { status: 500 });
+            console.error("[Webhook] Database/Processing error:", dbError);
+            // We still return 200 to acknowledge Stripe, but log the error
+            // Or return 500 if we want Stripe to retry
+            return NextResponse.json({ error: "Processing error" }, { status: 500 });
         }
     }
 

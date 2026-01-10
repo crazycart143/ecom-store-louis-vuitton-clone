@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { 
   ArrowLeft, 
@@ -8,7 +8,9 @@ import {
   X, 
   Plus, 
   Loader2,
-  Check
+  Check,
+  ImageIcon,
+  Trash2
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -16,6 +18,7 @@ import { UploadDropzone } from "@/lib/uploadthing";
 
 export default function NewProductPage() {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState([]);
   
@@ -27,8 +30,9 @@ export default function NewProductPage() {
     categoryId: "",
   });
 
-  const [images, setImages] = useState<string[]>([""]);
+  const [images, setImages] = useState<string[]>([]);
   const [details, setDetails] = useState<string[]>([""]);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     fetch("/api/categories")
@@ -65,10 +69,39 @@ export default function NewProductPage() {
     }
   };
 
-  const addImageField = () => setImages([...images, ""]);
-  const removeImageField = (index: number) => {
-    const newImages = images.filter((_, i) => i !== index);
-    setImages(newImages.length ? newImages : [""]);
+  const removeImage = (index: number) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const processFiles = (files: File[]) => {
+    files.forEach(file => {
+        if (!file.type.startsWith('image/')) {
+            toast.error(`${file.name} is not an image`);
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadstart = () => setLoading(true);
+        reader.onloadend = () => {
+            setImages(prev => [...prev, reader.result as string]);
+            setLoading(false);
+            toast.success(`Processed ${file.name}`);
+        };
+        reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFileDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) processFiles(files);
+  };
+
+  const handleManualUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) processFiles(files);
   };
 
   const addDetailField = () => setDetails([...details, ""]);
@@ -138,64 +171,104 @@ export default function NewProductPage() {
             </div>
           </section>
 
-          {/* Media */}
+          {/* Media Manager */}
           <section className="bg-white p-8 rounded-2xl border border-zinc-100 shadow-sm space-y-6">
-            <h2 className="text-[14px] uppercase tracking-widest font-bold border-b border-zinc-50 pb-4">Product Media</h2>
+            <div className="flex justify-between items-end border-b border-zinc-50 pb-4">
+                <h2 className="text-[14px] uppercase tracking-widest font-bold">Media Manager</h2>
+                <span className="text-[11px] text-zinc-400 font-medium">{images.length} file(s) uploaded</span>
+            </div>
             
-            <div className="space-y-6 font-sans">
-              <div className="mb-4">
-                <UploadDropzone
-                  endpoint="imageUploader"
-                  onClientUploadComplete={(res) => {
-                    const newUrls = res.map(file => file.url);
-                    // Filter out the initial empty string and add new URLs
-                    setImages(prev => {
-                      const filtered = prev.filter(url => url.trim() !== "");
-                      return [...filtered, ...newUrls];
-                    });
-                    toast.success("Upload Complete");
-                  }}
-                  onUploadError={(error: Error) => {
-                    toast.error(`ERROR! ${error.message}`);
-                  }}
-                  className="ut-button:bg-black ut-label:text-black ut-button:ut-readying:bg-zinc-800"
-                />
+            <div className="space-y-6">
+              {/* Drag & Drop Zone */}
+              <div 
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleFileDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={`relative group border-2 border-dashed rounded-3xl p-12 transition-all flex flex-col items-center justify-center gap-4 cursor-pointer
+                    ${isDragging ? "border-black bg-zinc-50 scale-[0.99]" : "border-zinc-100 hover:border-zinc-300"}
+                    ${images.length > 0 ? "p-8 opacity-60 hover:opacity-100" : "p-12"}
+                `}
+              >
+                <div className="w-16 h-16 rounded-2xl bg-zinc-50 flex items-center justify-center text-zinc-400 group-hover:scale-110 group-hover:text-black transition-all duration-500">
+                    <Upload size={28} />
+                </div>
+                <div className="text-center">
+                    <p className="text-[14px] font-bold text-zinc-900">
+                        {images.length > 0 ? "Drop to add more" : "Drag & Drop or Click to upload"}
+                    </p>
+                    <p className="text-[12px] text-zinc-400 mt-1">PNG, JPG or WebP up to 10MB</p>
+                </div>
               </div>
 
-              <div className="space-y-4">
+              {/* Image Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {images.map((url, index) => (
-                <div key={index} className="flex gap-3">
-                  <div className="flex-1">
-                    <input 
-                      type="text" 
-                      value={url}
-                      onChange={(e) => {
-                        const newImages = [...images];
-                        newImages[index] = e.target.value;
-                        setImages(newImages);
-                      }}
-                      className="w-full bg-zinc-50 border border-zinc-100 px-4 py-3 rounded-xl text-[13px] focus:outline-none focus:border-black transition-all"
-                      placeholder="Paste image URL here..."
-                    />
-                  </div>
-                  <button 
-                    type="button"
-                    onClick={() => removeImageField(index)}
-                    className="p-3 text-zinc-300 hover:text-red-500 transition-colors"
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
-              ))}
-              <button 
-                type="button"
-                onClick={addImageField}
-                className="w-full py-4 border-2 border-dashed border-zinc-100 rounded-xl text-zinc-400 text-[12px] uppercase tracking-widest font-bold hover:border-black hover:text-black transition-all flex items-center justify-center gap-2"
-              >
-                <Plus size={16} /> Add Another Image
-              </button>
+                    <div key={index} className="relative aspect-square rounded-2xl overflow-hidden border border-zinc-100 group bg-zinc-50">
+                        <img src={url} alt="Preview" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+                            <button 
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); removeImage(index); }}
+                                className="p-3 bg-white text-red-500 rounded-xl hover:scale-110 transition-transform shadow-xl"
+                            >
+                                <Trash2 size={18} />
+                            </button>
+                        </div>
+                        <div className="absolute top-2 left-2 px-2 py-1 bg-black/60 backdrop-blur-md rounded-lg text-[10px] text-white font-bold tracking-widest uppercase">
+                            {index === 0 ? "Main" : `M-${index}`}
+                        </div>
+                    </div>
+                ))}
+                {images.length > 0 && (
+                    <button 
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="aspect-square border-2 border-dashed border-zinc-100 rounded-2xl flex flex-col items-center justify-center gap-2 text-zinc-400 hover:border-black hover:text-black transition-all group"
+                    >
+                        <Plus size={20} className="group-hover:rotate-90 transition-transform" />
+                        <span className="text-[10px] font-bold uppercase tracking-widest">Add More</span>
+                    </button>
+                )}
+              </div>
+
+              {/* Hidden File Input for Manual Trigger */}
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleManualUpload} 
+                className="hidden" 
+                multiple 
+                accept="image/*"
+              />
+
+              {/* Legacy URL Section (Collapsible/Secondary) */}
+              <div className="pt-4">
+                <details className="group cursor-pointer">
+                    <summary className="text-[11px] text-zinc-400 uppercase tracking-widest font-bold hover:text-black list-none flex items-center gap-2">
+                        <Plus size={10} className="group-open:rotate-45 transition-transform" />
+                        Advanced: Add by URL
+                    </summary>
+                    <div className="mt-4 space-y-4">
+                        {images.map((url, index) => (
+                            <div key={index} className="flex gap-2">
+                                <input 
+                                    type="text"
+                                    value={url}
+                                    onChange={(e) => {
+                                        const next = [...images];
+                                        next[index] = e.target.value;
+                                        setImages(next);
+                                    }}
+                                    className="flex-1 bg-zinc-50 border border-zinc-100 px-4 py-2 rounded-xl text-[12px] focus:outline-none"
+                                    placeholder="https://..."
+                                />
+                            </div>
+                        ))}
+                    </div>
+                </details>
+              </div>
             </div>
-          </div>
           </section>
 
           {/* Product Specifications */}

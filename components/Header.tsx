@@ -19,6 +19,7 @@ export function Header({ variant = "transparent" }: { variant?: "transparent" | 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isCallOpen, setIsCallOpen] = useState(false);
   const [announcementBarHeight, setAnnouncementBarHeight] = useState(0);
+  const [impersonationBarHeight, setImpersonationBarHeight] = useState(0);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -29,31 +30,27 @@ export function Header({ variant = "transparent" }: { variant?: "transparent" | 
   }, []);
 
   useEffect(() => {
-    // Check for announcement bar and get its height
-    const checkAnnouncementBar = () => {
+    // Check for bars and get their heights
+    const checkBars = () => {
       const announcementBar = document.getElementById("announcement-bar");
-      if (announcementBar) {
-        const height = announcementBar.offsetHeight;
-        setAnnouncementBarHeight(height);
-        return true;
-      } else {
-        setAnnouncementBarHeight(0);
-        return false;
-      }
+      const impersonationBar = document.getElementById("impersonation-bar");
+      
+      setAnnouncementBarHeight(announcementBar ? announcementBar.offsetHeight : 0);
+      setImpersonationBarHeight(impersonationBar ? impersonationBar.offsetHeight : 0);
     };
 
     // Check immediately
-    checkAnnouncementBar();
+    checkBars();
 
     // Check multiple times with delays to ensure we catch it
-    const timer1 = setTimeout(checkAnnouncementBar, 50);
-    const timer2 = setTimeout(checkAnnouncementBar, 100);
-    const timer3 = setTimeout(checkAnnouncementBar, 200);
-    const timer4 = setTimeout(checkAnnouncementBar, 500);
+    const timer1 = setTimeout(checkBars, 50);
+    const timer2 = setTimeout(checkBars, 100);
+    const timer3 = setTimeout(checkBars, 200);
+    const timer4 = setTimeout(checkBars, 500);
 
-    // Set up MutationObserver to watch for announcement bar being added
+    // Set up MutationObserver to watch for bars being added
     const observer = new MutationObserver(() => {
-      checkAnnouncementBar();
+      checkBars();
     });
 
     observer.observe(document.body, {
@@ -62,7 +59,7 @@ export function Header({ variant = "transparent" }: { variant?: "transparent" | 
     });
 
     // Also check on resize
-    window.addEventListener("resize", checkAnnouncementBar);
+    window.addEventListener("resize", checkBars);
     
     return () => {
       clearTimeout(timer1);
@@ -70,15 +67,15 @@ export function Header({ variant = "transparent" }: { variant?: "transparent" | 
       clearTimeout(timer3);
       clearTimeout(timer4);
       observer.disconnect();
-      window.removeEventListener("resize", checkAnnouncementBar);
+      window.removeEventListener("resize", checkBars);
     };
-  }, []);
+  }, [session]);
 
   const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
     <header
-      style={{ top: `${announcementBarHeight}px` }}
+      style={{ top: `${announcementBarHeight + impersonationBarHeight}px` }}
       className={`fixed left-0 right-0 z-[80] transition-all duration-500 ${
         variant === "black" 
           ? "bg-black text-white py-3 md:py-4" 

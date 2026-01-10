@@ -57,3 +57,66 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: "Failed to fetch orders" }, { status: 500 });
     }
 }
+
+export async function POST(req: Request) {
+    const session = await getServerSession(authOptions);
+
+    if (!session || !["ADMIN", "MANAGER", "STAFF"].includes(session.user.role as string)) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    try {
+        const body = await req.json();
+        const { email, items, total, status, fulfillment } = body;
+
+        const client = await clientPromise;
+        const db = client.db();
+        const { ObjectId } = await import("mongodb");
+
+        // Attempt to find user by email to link order
+        const user = await db.collection("User").findOne({ email });
+
+        // Create the order
+        const orderResult = await db.collection("Order").insertOne({
+            email,
+            total: parseFloat(total),
+            status: status || "PENDING",
+            fulfillment: fulfillment || "UNFULFILLED",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            userId: user ? user._id : null,
+        });
+
+        const orderId = orderResult.insertedId;
+
+        // Create order items
+        if (items && items.length > 0) {
+            await db.collection("OrderItem").insertMany(
+                items.map((item: any) => ({
+                    orderId,
+                    productId: new ObjectId(item.productId),
+                    name: item.name,
+                    quantity: parseInt(item.quantity),
+                    price: parseFloat(item.price),
+                    image: item.image || (item.images && item.images[0]?.url) || null
+                }))
+            );
+        }
+
+        // Log the action
+        await db.collection("AuditLog").insertOne({
+            type: "ORDER",
+            action: status === "DRAFT" ? "CREATED_DRAFT" : "CREATED_ORDER",
+            adminId: session.user.id,
+            adminName: session.user.name,
+            targetId: orderId.toString(),
+            targetName: `Order ${orderId.toString().slice(-6).toUpperCase()}`,
+            timestamp: new Date(),
+        }).catch(err => console.error("Audit log failed:", err));
+
+        return NextResponse.json({ success: true, id: orderId.toString() });
+    } catch (error: any) {
+        console.error("Create order error:", error);
+        return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
+    }
+}

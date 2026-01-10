@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 
+import { useSession } from "next-auth/react";
+
 interface AnnouncementSettings {
   announcementEnabled: boolean;
   announcementType: "normal" | "marquee" | "countdown";
@@ -16,8 +18,10 @@ interface AnnouncementSettings {
 
 export default function AnnouncementBar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
   const [settings, setSettings] = useState<AnnouncementSettings | null>(null);
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const [impersonationBarHeight, setImpersonationBarHeight] = useState(0);
 
   useEffect(() => {
     // Don't fetch settings on admin pages
@@ -28,8 +32,6 @@ export default function AnnouncementBar() {
     fetch("/api/settings")
       .then(res => res.json())
       .then(data => {
-        console.log("AnnouncementBar - Fetched settings:", data);
-        console.log("AnnouncementBar - Enabled?", data.announcementEnabled);
         setSettings(data);
       })
       .catch((err) => {
@@ -38,8 +40,20 @@ export default function AnnouncementBar() {
   }, [pathname]);
 
   useEffect(() => {
+    // Set up MutationObserver to watch for changes in the impersonation bar
+    const checkBars = () => {
+      const impBar = document.getElementById("impersonation-bar");
+      setImpersonationBarHeight(impBar ? impBar.offsetHeight : 0);
+    };
+
+    checkBars();
+    const observer = new MutationObserver(checkBars);
+    observer.observe(document.body, { childList: true, subtree: true });
+    window.addEventListener("resize", checkBars);
+
+    let interval: NodeJS.Timeout | undefined;
     if (settings?.announcementType === "countdown" && settings.announcementDate) {
-      const interval = setInterval(() => {
+      interval = setInterval(() => {
         const now = new Date().getTime();
         const target = new Date(settings.announcementDate).getTime();
         const distance = target - now;
@@ -53,10 +67,14 @@ export default function AnnouncementBar() {
           });
         }
       }, 1000);
-
-      return () => clearInterval(interval);
     }
-  }, [settings]);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", checkBars);
+      if (interval) clearInterval(interval);
+    };
+  }, [settings, session]);
 
   // Don't show announcement bar on admin pages
   if (pathname?.startsWith("/admin")) {
@@ -92,19 +110,16 @@ export default function AnnouncementBar() {
     </div>
   );
 
-  if (settings.announcementLink) {
-    return (
-      <div className="fixed top-0 left-0 right-0 z-[90]">
+  return (
+    <div 
+      className="fixed left-0 right-0 z-[90]"
+      style={{ top: `${impersonationBarHeight}px` }}
+    >
+      {settings.announcementLink ? (
         <Link href={settings.announcementLink} className="block hover:opacity-90 transition-opacity">
           {content}
         </Link>
-      </div>
-    );
-  }
-
-  return (
-    <div className="fixed top-0 left-0 right-0 z-[90]">
-      {content}
+      ) : content}
     </div>
   );
 }

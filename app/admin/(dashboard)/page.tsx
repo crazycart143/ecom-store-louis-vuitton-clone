@@ -17,12 +17,16 @@ import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
     totalSales: 0,
+    salesTrend: "0%",
     totalOrders: 0,
+    ordersTrend: "0%",
     totalCustomers: 0,
-    growth: "0%"
+    customersTrend: "0%",
+    avgOrderValue: 0,
+    aovTrend: "0%"
   });
 
-  const [recentOrders, setRecentOrders] = useState([]);
+  const [recentOrders, setRecentOrders] = useState<any[]>([]);
 
   const [graphData, setGraphData] = useState<any[]>([]);
 
@@ -36,10 +40,29 @@ export default function AdminDashboard() {
     ]).then(([orders, products]) => {
         if (!Array.isArray(orders) || !Array.isArray(products)) return;
 
-        // 1. Stats and Graph
+        const now = new Date();
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+
+        // Filter orders by period
+        const currentOrders = orders.filter((o: any) => new Date(o.createdAt) >= thirtyDaysAgo);
+        const previousOrders = orders.filter((o: any) => {
+            const date = new Date(o.createdAt);
+            return date >= sixtyDaysAgo && date < thirtyDaysAgo;
+        });
+
+        // Calculate Totals
         const totalSales = orders.reduce((acc: number, order: any) => acc + order.total, 0);
-        
-        // Aggregate Monthly Data
+        const currentSales = currentOrders.reduce((acc: number, order: any) => acc + order.total, 0);
+        const previousSales = previousOrders.reduce((acc: number, order: any) => acc + order.total, 0);
+
+        const calculateTrend = (curr: number, prev: number) => {
+            if (prev === 0) return curr > 0 ? "+100%" : "0%";
+            const change = ((curr - prev) / prev) * 100;
+            return (change >= 0 ? "+" : "") + Math.round(change) + "%";
+        };
+
+        // Monthly Graph Data
         const monthlyData = [
             { name: "Jan", total: 0 }, { name: "Feb", total: 0 }, { name: "Mar", total: 0 },
             { name: "Apr", total: 0 }, { name: "May", total: 0 }, { name: "Jun", total: 0 },
@@ -55,7 +78,7 @@ export default function AdminDashboard() {
             }
         });
 
-        // 2. Top Collections Calculation
+        // Top Collections
         const productCategoryMap: Record<string, string> = {};
         products.forEach((p: any) => {
             if (p.category?.name) {
@@ -84,16 +107,32 @@ export default function AdminDashboard() {
                 percentage: totalItemsSold > 0 ? Math.round((count / totalItemsSold) * 100) : 0
             }))
             .sort((a, b) => b.count - a.count)
-            .slice(0, 5); // Top 5
+            .slice(0, 5);
 
-        setTopCollections(collectionsArray);
+        // Trends
+        const salesTrend = calculateTrend(currentSales, previousSales);
+        const ordersTrend = calculateTrend(currentOrders.length, previousOrders.length);
+        
+        const currentCust = new Set(currentOrders.map(o => o.email)).size;
+        const previousCust = new Set(previousOrders.map(o => o.email)).size;
+        const customersTrend = calculateTrend(currentCust, previousCust);
+
+        const currentAOV = currentOrders.length > 0 ? (currentSales / currentOrders.length) : 0;
+        const previousAOV = previousOrders.length > 0 ? (previousSales / previousOrders.length) : 0;
+        const aovTrend = calculateTrend(currentAOV, previousAOV);
 
         setStats({
           totalSales,
+          salesTrend,
           totalOrders: orders.length,
+          ordersTrend,
           totalCustomers: new Set(orders.map((o: any) => o.email)).size,
-          growth: orders.length > 0 ? "+100%" : "0%"
+          customersTrend,
+          avgOrderValue: orders.length > 0 ? (totalSales / orders.length) : 0,
+          aovTrend
         });
+        
+        setTopCollections(collectionsArray);
         setRecentOrders(orders.slice(0, 5));
         setGraphData(monthlyData);
       });
@@ -145,10 +184,10 @@ export default function AdminDashboard() {
   }
 
   const cards = [
-    { label: "Total Sales", value: stats.totalSales, prefix: "$", icon: DollarSign, trend: stats.growth, color: "text-green-600 bg-green-50" },
-    { label: "Total Orders", value: stats.totalOrders, icon: ShoppingBag, trend: stats.growth, color: "text-blue-600 bg-blue-50" },
-    { label: "Customers", value: stats.totalCustomers, icon: Users, trend: stats.growth, color: "text-purple-600 bg-purple-50" },
-    { label: "Avg. Order Value", value: stats.totalOrders > 0 ? (stats.totalSales / stats.totalOrders) : 0, prefix: "$", icon: TrendingUp, trend: stats.growth, color: "text-orange-600 bg-orange-50" },
+    { label: "Total Sales", value: stats.totalSales, prefix: "$", icon: DollarSign, trend: stats.salesTrend, color: "text-green-600 bg-green-50" },
+    { label: "Total Orders", value: stats.totalOrders, icon: ShoppingBag, trend: stats.ordersTrend, color: "text-blue-600 bg-blue-50" },
+    { label: "Customers", value: stats.totalCustomers, icon: Users, trend: stats.customersTrend, color: "text-purple-600 bg-purple-50" },
+    { label: "Avg. Order Value", value: stats.avgOrderValue, prefix: "$", icon: TrendingUp, trend: stats.aovTrend, color: "text-orange-600 bg-orange-50" },
   ];
 
   return (
