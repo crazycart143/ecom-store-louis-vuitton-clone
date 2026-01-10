@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import bcrypt from "bcryptjs";
+import { NotificationHelpers } from "@/lib/notifications";
 
 export async function POST(req: Request) {
     try {
@@ -35,6 +36,9 @@ export async function POST(req: Request) {
             createdAt: new Date(),
             updatedAt: new Date()
         });
+
+        // Create admin notification for new customer
+        await NotificationHelpers.newCustomer(email, result.insertedId.toString());
 
         return NextResponse.json(
             { message: "User created successfully", user: { email, name } },

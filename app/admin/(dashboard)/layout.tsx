@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -35,12 +35,34 @@ export default function AdminLayout({
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [unfulfilledCount, setUnfulfilledCount] = useState(0);
   const { clearCart } = useCart();
   const { clearWishlist } = useWishlist();
 
+  // Fetch unfulfilled orders count
+  useEffect(() => {
+    const fetchUnfulfilledCount = async () => {
+      try {
+        const res = await fetch("/api/orders");
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          const unfulfilled = data.filter((order: any) => order.fulfillment === "UNFULFILLED").length;
+          setUnfulfilledCount(unfulfilled);
+        }
+      } catch (error) {
+        console.error("Failed to fetch unfulfilled orders:", error);
+      }
+    };
+    
+    fetchUnfulfilledCount();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchUnfulfilledCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   const navigation = [
     { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
-    { name: "Orders", href: "/admin/orders", icon: ShoppingBag },
+    { name: "Orders", href: "/admin/orders", icon: ShoppingBag, badge: unfulfilledCount },
     { name: "Products", href: "/admin/products", icon: Package },
     { name: "Collections", href: "/admin/collections", icon: Layers },
     { name: "Customers", href: "/admin/customers", icon: Users },
@@ -133,7 +155,7 @@ export default function AdminLayout({
                 href={item.href}
                 onClick={() => setIsMobileMenuOpen(false)}
                 data-tour={tourId}
-                className={`flex items-center gap-4 px-5 py-4 rounded-xl text-[12px] uppercase tracking-widest transition-all ${
+                className={`flex items-center gap-4 px-5 py-4 rounded-xl text-[12px] uppercase tracking-widest transition-all relative ${
                   isActive 
                   ? "bg-white text-black font-black shadow-[0_10px_20px_rgba(255,255,255,0.1)]" 
                   : "text-zinc-500 hover:text-white hover:bg-zinc-800/50"
@@ -141,6 +163,11 @@ export default function AdminLayout({
               >
                 <item.icon size={20} strokeWidth={isActive ? 2.5 : 1.5} />
                 {item.name}
+                {item.badge !== undefined && item.badge > 0 && (
+                  <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
+                    {item.badge}
+                  </span>
+                )}
               </Link>
             );
           })}

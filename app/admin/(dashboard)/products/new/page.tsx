@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { UploadDropzone } from "@/lib/uploadthing";
 
 export default function NewProductPage() {
   const router = useRouter();
@@ -141,8 +142,28 @@ export default function NewProductPage() {
           <section className="bg-white p-8 rounded-2xl border border-zinc-100 shadow-sm space-y-6">
             <h2 className="text-[14px] uppercase tracking-widest font-bold border-b border-zinc-50 pb-4">Product Media</h2>
             
-            <div className="space-y-4 font-sans">
-              {images.map((url, index) => (
+            <div className="space-y-6 font-sans">
+              <div className="mb-4">
+                <UploadDropzone
+                  endpoint="imageUploader"
+                  onClientUploadComplete={(res) => {
+                    const newUrls = res.map(file => file.url);
+                    // Filter out the initial empty string and add new URLs
+                    setImages(prev => {
+                      const filtered = prev.filter(url => url.trim() !== "");
+                      return [...filtered, ...newUrls];
+                    });
+                    toast.success("Upload Complete");
+                  }}
+                  onUploadError={(error: Error) => {
+                    toast.error(`ERROR! ${error.message}`);
+                  }}
+                  className="ut-button:bg-black ut-label:text-black ut-button:ut-readying:bg-zinc-800"
+                />
+              </div>
+
+              <div className="space-y-4">
+                {images.map((url, index) => (
                 <div key={index} className="flex gap-3">
                   <div className="flex-1">
                     <input 
@@ -174,6 +195,7 @@ export default function NewProductPage() {
                 <Plus size={16} /> Add Another Image
               </button>
             </div>
+          </div>
           </section>
 
           {/* Product Specifications */}

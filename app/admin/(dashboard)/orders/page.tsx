@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { 
   ShoppingBag, 
   Search, 
@@ -96,7 +98,11 @@ export default function AdminOrders() {
               <tbody className="divide-y divide-zinc-50 font-sans">
                 {filteredOrders.map((order: any) => (
                   <tr key={order.id} className="hover:bg-zinc-50/50 transition-colors group">
-                    <td className="px-6 py-4 text-[13px] font-bold">#{order.id.slice(-6).toUpperCase()}</td>
+                    <td className="px-6 py-4 text-[13px] font-bold">
+                      <Link href={`/admin/orders/${order.id}`} className="hover:underline">
+                        #{order.id.slice(-6).toUpperCase()}
+                      </Link>
+                    </td>
                     <td className="px-6 py-4 text-[13px] text-zinc-600">
                       {new Date(order.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
                     </td>
@@ -113,15 +119,22 @@ export default function AdminOrders() {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-[10px] px-2.5 py-1 rounded-full bg-yellow-50 text-yellow-700 font-bold tracking-widest uppercase">
-                        Unfulfilled
+                      <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold tracking-widest uppercase ${
+                        order.fulfillment === 'FULFILLED' 
+                          ? 'bg-green-50 text-green-700' 
+                          : 'bg-yellow-50 text-yellow-700'
+                      }`}>
+                        {order.fulfillment || 'Unfulfilled'}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-[13px] font-bold text-black">${order.total.toLocaleString()}</td>
                     <td className="px-6 py-4">
-                      <button className="p-2 hover:bg-zinc-100 rounded-lg text-zinc-300 hover:text-black transition-colors">
+                      <Link 
+                        href={`/admin/orders/${order.id}`}
+                        className="p-2 hover:bg-zinc-100 rounded-lg text-zinc-300 hover:text-black transition-colors inline-block"
+                      >
                         <ChevronRight size={18} />
-                      </button>
+                      </Link>
                     </td>
                   </tr>
                 ))}

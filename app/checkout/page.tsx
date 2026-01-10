@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useCart } from "@/context/CartContext";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -8,22 +8,60 @@ import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronRight, Truck, ShieldCheck, RefreshCw, Loader2 } from "lucide-react";
+import { ChevronRight, Truck, ShieldCheck, RefreshCw, Loader2, Plus } from "lucide-react";
 import { loadStripe } from "@stripe/stripe-js";
 
 export default function CheckoutPage() {
   const { cart, total } = useCart();
   const { data: session } = useSession();
   const [isLoading, setIsLoading] = useState(false);
+  const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
+  
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
     address: "",
     city: "",
+    state: "",
     zipCode: "",
     country: "United States",
     phone: "",
   });
+
+  useEffect(() => {
+    if (session?.user) {
+        fetch("/api/user/addresses")
+            .then(res => res.json())
+            .then(data => {
+                if (Array.isArray(data)) {
+                    setSavedAddresses(data);
+                    // Pre-fill default if form is empty
+                    const defaultAddr = data.find((a: any) => a.isDefault);
+                    if (defaultAddr && !formData.address) {
+                        selectAddress(defaultAddr);
+                    }
+                }
+            })
+            .catch(err => console.error("Failed to load addresses", err));
+    }
+  }, [session]);
+
+  const selectAddress = (addr: any) => {
+    const names = (session?.user?.name || "").split(" ");
+    const uFirst = names[0] || "";
+    const uLast = names.slice(1).join(" ") || "";
+
+    setFormData(prev => ({
+        ...prev,
+        firstName: prev.firstName || uFirst,
+        lastName: prev.lastName || uLast,
+        address: addr.line1,
+        city: addr.city,
+        state: addr.state || "",
+        zipCode: addr.postal_code,
+        country: addr.country,
+    }));
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -113,6 +151,62 @@ export default function CheckoutPage() {
                 <h1 className="text-3xl md:text-4xl font-serif tracking-tight text-black">Checkout</h1>
               </header>
 
+              {/* Saved Addresses Selection */}
+              {/* Saved Addresses Selection */}
+              {savedAddresses.length > 0 && (
+                <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-xs uppercase tracking-[0.2em] font-bold text-zinc-500">Use a Saved Address</h3>
+                        <Link href="/account?tab=addresses" className="text-[10px] uppercase tracking-widest underline decoration-zinc-300 underline-offset-4 hover:text-zinc-600 transition-colors">Manage</Link>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {savedAddresses.map((addr) => {
+                            const isSelected = formData.address === addr.line1 && formData.zipCode === addr.postal_code;
+                            return (
+                                <div 
+                                    key={addr.id}
+                                    onClick={() => selectAddress(addr)}
+                                    className={`relative p-6 border rounded-xl cursor-pointer transition-all duration-300 ${
+                                        isSelected
+                                        ? "border-black bg-neutral-50 shadow-sm" 
+                                        : "border-zinc-200 hover:border-zinc-400 bg-white"
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <h4 className="font-medium text-sm text-black truncate">{addr.line1}</h4>
+                                        {addr.isDefault && (
+                                            <span className="text-[9px] bg-black text-white px-2 py-0.5 rounded-full uppercase tracking-wider font-bold shrink-0">Default</span>
+                                        )}
+                                    </div>
+                                    <p className="text-xs text-zinc-500 font-light mb-1 truncate">{addr.city}, {addr.state} {addr.postal_code}</p>
+                                    <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">{addr.country === 'PH' ? 'Philippines' : addr.country === 'US' ? 'United States' : addr.country}</p>
+                                    
+                                    {/* Selection Indicator */}
+                                    <div className={`absolute top-6 right-6 w-4 h-4 rounded-full border border-zinc-300 flex items-center justify-center transition-colors ${
+                                        isSelected ? "border-black" : ""
+                                    }`}>
+                                        {isSelected && <div className="w-2 h-2 bg-black rounded-full" />}
+                                    </div>
+                                </div>
+                            );
+                        })}
+
+                        {/* Option to use different/new address */}
+                        <div 
+                            onClick={() => setFormData(prev => ({ ...prev, address: "", city: "", state: "", zipCode: "", country: "US" }))}
+                            className={`p-6 border rounded-xl cursor-pointer flex flex-col items-center justify-center gap-3 transition-all ${
+                                !savedAddresses.some(a => a.line1 === formData.address) && !formData.address // Simple check, or just check empty
+                                ? "border-black bg-neutral-50 shadow-sm" 
+                                : "border-dashed border-zinc-300 hover:border-zinc-400 bg-transparent text-zinc-400 hover:text-black"
+                            }`}
+                        >
+                            <Plus size={18} />
+                            <span className="text-[10px] font-bold uppercase tracking-widest">Enter New Address</span>
+                        </div>
+                    </div>
+                </div>
+              )}
+
               <form onSubmit={handleCheckout} className="space-y-12">
                 {/* Shipping Section */}
                 <section className="space-y-6">
@@ -161,7 +255,7 @@ export default function CheckoutPage() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <label className="text-[10px] uppercase tracking-widest text-zinc-500 font-medium ml-1">City</label>
                       <input 
@@ -171,6 +265,18 @@ export default function CheckoutPage() {
                         value={formData.city}
                         onChange={handleInputChange}
                         placeholder="New York" 
+                        className="w-full px-5 py-4 bg-white border border-zinc-100 rounded-xl text-sm focus:border-black outline-none transition-all shadow-xs"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase tracking-widest text-zinc-500 font-medium ml-1">State</label>
+                      <input 
+                        required
+                        type="text" 
+                        name="state"
+                        value={formData.state}
+                        onChange={handleInputChange}
+                        placeholder="NY" 
                         className="w-full px-5 py-4 bg-white border border-zinc-100 rounded-xl text-sm focus:border-black outline-none transition-all shadow-xs"
                       />
                     </div>

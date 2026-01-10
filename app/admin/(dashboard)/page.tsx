@@ -24,19 +24,78 @@ export default function AdminDashboard() {
 
   const [recentOrders, setRecentOrders] = useState([]);
 
+  const [graphData, setGraphData] = useState<any[]>([]);
+
+  const [topCollections, setTopCollections] = useState<any[]>([]);
+
   useEffect(() => {
     // Fetch dashboard data
-    fetch("/api/orders")
-      .then((res) => res.json())
-      .then((data) => {
-        const totalSales = data.reduce((acc: number, order: any) => acc + order.total, 0);
+    Promise.all([
+        fetch("/api/orders").then(res => res.json()),
+        fetch("/api/products").then(res => res.json())
+    ]).then(([orders, products]) => {
+        if (!Array.isArray(orders) || !Array.isArray(products)) return;
+
+        // 1. Stats and Graph
+        const totalSales = orders.reduce((acc: number, order: any) => acc + order.total, 0);
+        
+        // Aggregate Monthly Data
+        const monthlyData = [
+            { name: "Jan", total: 0 }, { name: "Feb", total: 0 }, { name: "Mar", total: 0 },
+            { name: "Apr", total: 0 }, { name: "May", total: 0 }, { name: "Jun", total: 0 },
+            { name: "Jul", total: 0 }, { name: "Aug", total: 0 }, { name: "Sep", total: 0 },
+            { name: "Oct", total: 0 }, { name: "Nov", total: 0 }, { name: "Dec", total: 0 },
+        ];
+
+        orders.forEach((order: any) => {
+            const date = new Date(order.createdAt);
+            const month = date.getMonth();
+            if (!isNaN(month)) {
+                monthlyData[month].total += order.total;
+            }
+        });
+
+        // 2. Top Collections Calculation
+        const productCategoryMap: Record<string, string> = {};
+        products.forEach((p: any) => {
+            if (p.category?.name) {
+                productCategoryMap[p.id] = p.category.name;
+            }
+        });
+
+        const collectionCounts: Record<string, number> = {};
+        let totalItemsSold = 0;
+
+        orders.forEach((order: any) => {
+            if (Array.isArray(order.items)) {
+                order.items.forEach((item: any) => {
+                    const pid = item.productId;
+                    const catName = productCategoryMap[pid] || "Uncategorized";
+                    collectionCounts[catName] = (collectionCounts[catName] || 0) + (item.quantity || 1);
+                    totalItemsSold += (item.quantity || 1);
+                });
+            }
+        });
+
+        const collectionsArray = Object.entries(collectionCounts)
+            .map(([name, count]) => ({
+                name,
+                count,
+                percentage: totalItemsSold > 0 ? Math.round((count / totalItemsSold) * 100) : 0
+            }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5); // Top 5
+
+        setTopCollections(collectionsArray);
+
         setStats({
           totalSales,
-          totalOrders: data.length,
-          totalCustomers: new Set(data.map((o: any) => o.email)).size,
-          growth: data.length > 0 ? "+100%" : "0%"
+          totalOrders: orders.length,
+          totalCustomers: new Set(orders.map((o: any) => o.email)).size,
+          growth: orders.length > 0 ? "+100%" : "0%"
         });
-        setRecentOrders(data.slice(0, 5));
+        setRecentOrders(orders.slice(0, 5));
+        setGraphData(monthlyData);
       });
   }, []);
 
@@ -66,11 +125,30 @@ export default function AdminDashboard() {
     document.body.removeChild(link);
   };
 
+  function timeAgo(dateParam: string | Date) {
+      if (!dateParam) return null;
+      const date = typeof dateParam === 'object' ? dateParam : new Date(dateParam);
+      const today = new Date();
+      const seconds = Math.round((today.getTime() - date.getTime()) / 1000);
+      const minutes = Math.round(seconds / 60);
+
+      if (seconds < 5) return 'Just now';
+      if (seconds < 60) return `${seconds}s ago`;
+      if (seconds < 90) return '1m ago';
+      if (minutes < 60) return `${minutes}m ago`;
+      
+      const hours = Math.round(minutes / 60);
+      if (hours < 24) return `${hours}h ago`;
+      
+      const days = Math.round(hours / 24);
+      return `${days}d ago`;
+  }
+
   const cards = [
     { label: "Total Sales", value: stats.totalSales, prefix: "$", icon: DollarSign, trend: stats.growth, color: "text-green-600 bg-green-50" },
     { label: "Total Orders", value: stats.totalOrders, icon: ShoppingBag, trend: stats.growth, color: "text-blue-600 bg-blue-50" },
     { label: "Customers", value: stats.totalCustomers, icon: Users, trend: stats.growth, color: "text-purple-600 bg-purple-50" },
-    { label: "Avg. Order Value", value: stats.totalOrders > 0 ? (stats.totalSales / stats.totalOrders) : 0, prefix: "$", icon: TrendingUp, trend: "0%", color: "text-orange-600 bg-orange-50" },
+    { label: "Avg. Order Value", value: stats.totalOrders > 0 ? (stats.totalSales / stats.totalOrders) : 0, prefix: "$", icon: TrendingUp, trend: stats.growth, color: "text-orange-600 bg-orange-50" },
   ];
 
   return (
@@ -119,7 +197,7 @@ export default function AdminDashboard() {
       {/* Revenue Chart */}
       <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-6">
         <h3 className="font-bold mb-6">Revenue Overview</h3>
-        <OverviewChart />
+        <OverviewChart data={graphData} />
       </div>
 
 
@@ -168,17 +246,17 @@ export default function AdminDashboard() {
         <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-6">
           <h3 className="font-bold mb-6">Top Collection Performance</h3>
           <div className="space-y-6">
-             {recentOrders.length > 0 ? (
-                ['Monogram Midnight', 'Spring-Summer 2026', 'Leather Goods'].map((collection, i) => (
-                    <div key={collection} className="space-y-2">
+             {topCollections.length > 0 ? (
+                topCollections.map((col, i) => (
+                    <div key={col.name} className="space-y-2">
                         <div className="flex justify-between text-[13px]">
-                        <span className="text-zinc-600">{collection}</span>
-                        <span className="font-semibold">{95 - (i * 15)}%</span>
+                        <span className="text-zinc-600">{col.name}</span>
+                        <span className="font-semibold">{col.percentage}%</span>
                         </div>
                         <div className="w-full bg-zinc-100 h-2 rounded-full overflow-hidden">
                         <div 
                             className={`h-full bg-black transition-all duration-1000`} 
-                            style={{ width: `${95 - (i * 15)}%` }}
+                            style={{ width: `${col.percentage}%` }}
                         ></div>
                         </div>
                     </div>
@@ -199,7 +277,7 @@ export default function AdminDashboard() {
                     <div className="w-2 h-2 rounded-full bg-green-500 mt-2 shrink-0 animate-pulse"></div>
                     <div>
                         <p className="text-[12px] font-medium text-zinc-800">New order placed by {order.email}</p>
-                        <p className="text-[10px] text-zinc-400 uppercase mt-1">Just now</p>
+                        <p className="text-[10px] text-zinc-400 uppercase mt-1">{timeAgo(order.createdAt)}</p>
                     </div>
                     </div>
                 ))
@@ -211,7 +289,6 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );

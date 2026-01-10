@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { UploadDropzone } from "@/lib/uploadthing";
 
 export default function EditProductPage() {
   const router = useRouter();
@@ -183,7 +184,26 @@ export default function EditProductPage() {
           <section className="bg-white p-8 rounded-2xl border border-zinc-100 shadow-sm space-y-6">
             <h2 className="text-[14px] uppercase tracking-widest font-bold border-b border-zinc-50 pb-4">Product Media</h2>
             
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="space-y-8 font-sans">
+              <div>
+                <UploadDropzone
+                  endpoint="imageUploader"
+                  onClientUploadComplete={(res) => {
+                    const newUrls = res.map(file => file.url);
+                    setImages(prev => {
+                      const filtered = prev.filter(url => url.trim() !== "");
+                      return [...filtered, ...newUrls];
+                    });
+                    toast.success("Upload Complete");
+                  }}
+                  onUploadError={(error: Error) => {
+                    toast.error(`ERROR! ${error.message}`);
+                  }}
+                  className="ut-button:bg-black ut-label:text-black ut-button:ut-readying:bg-zinc-800"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {images.map((url, index) => {
                 const isVideo = url.match(/\.(mp4|webm|mov)$/i);
                 return (
@@ -233,6 +253,7 @@ export default function EditProductPage() {
                 <span>Add Media</span>
               </button>
             </div>
+          </div>
           </section>
 
           {/* Product Specifications */}

@@ -4,11 +4,13 @@ import React from "react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { useWishlist } from "@/context/WishlistContext";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Heart } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function WishlistPage() {
+  const { data: session } = useSession();
   const { wishlist } = useWishlist();
 
   return (
@@ -31,12 +33,21 @@ export default function WishlistPage() {
                 Add your favorite items and share them.
               </p>
               <div className="pt-4">
-                <Link 
-                  href="/login" 
-                  className="inline-block px-12 py-4 bg-black text-white rounded-full text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-zinc-800 transition-colors"
-                >
-                  Sign In
-                </Link>
+                {session ? (
+                  <Link 
+                    href="/" 
+                    className="inline-block px-12 py-4 bg-black text-white rounded-full text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-zinc-800 transition-colors"
+                  >
+                    Start Shopping
+                  </Link>
+                ) : (
+                  <Link 
+                    href="/login" 
+                    className="inline-block px-12 py-4 bg-black text-white rounded-full text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-zinc-800 transition-colors"
+                  >
+                    Sign In
+                  </Link>
+                )}
               </div>
             </motion.div>
           ) : (
@@ -45,7 +56,7 @@ export default function WishlistPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                 {wishlist.map((item) => (
                   <div key={item.id} className="group text-left space-y-4">
-                    <div className="aspect-[4/5] bg-zinc-100 flex items-center justify-center relative overflow-hidden">
+                    <div className="aspect-4/5 bg-zinc-100 flex items-center justify-center relative overflow-hidden">
                        <span className="text-[10px] uppercase tracking-widest text-zinc-400">Louis Vuitton Asset</span>
                     </div>
                     <div className="space-y-1">
