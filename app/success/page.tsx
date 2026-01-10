@@ -8,11 +8,11 @@ import { CheckCircle, ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 export default function SuccessPage() {
-  const { cart, removeFromCart } = useCart();
+  const { clearCart } = useCart();
 
   useEffect(() => {
     // Clear cart on success
-    cart.forEach((item) => removeFromCart(item.id));
+    clearCart();
   }, []);
 
   return (

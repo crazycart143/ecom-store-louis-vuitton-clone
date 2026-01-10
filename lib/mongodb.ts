@@ -1,10 +1,11 @@
 import { MongoClient, ServerApiVersion } from "mongodb";
 
-if (!process.env.MONGODB_DATABASE_URL) {
-    throw new Error('Invalid/Missing environment variable: "MONGODB_DATABASE_URL". Please check your .env file and restart your dev server.');
+const uri = process.env.MONGODB_DATABASE_URL || process.env.MONGODB_URI;
+
+if (!uri) {
+    throw new Error('Invalid/Missing environment variable: "MONGODB_DATABASE_URL" or "MONGODB_URI"');
 }
 
-const uri = process.env.MONGODB_DATABASE_URL;
 const options = {
     maxPoolSize: 10,
     serverSelectionTimeoutMS: 5000,

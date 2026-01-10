@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 
 export async function GET() {
     try {
@@ -11,10 +13,14 @@ export async function GET() {
         const product = await db.collection("Product").findOne({});
         if (!product) return NextResponse.json({ error: "No products found" });
 
+        const session = await getServerSession(authOptions);
+        const userEmail = session?.user?.email || "client@test.com";
+        const userId = session?.user?.id || null;
+
         // 2. Create Order
         const orderResult = await db.collection("Order").insertOne({
-            userId: null,
-            email: "client@test.com",
+            userId: userId,
+            email: userEmail,
             total: product.price,
             status: "PAID",
             createdAt: new Date()

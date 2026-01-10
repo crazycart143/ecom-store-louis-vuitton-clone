@@ -12,11 +12,20 @@ import { Package, LogOut, ChevronRight, Loader2, User, MapPin, CreditCard, Setti
 export default function AccountPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const [expandedOrders, setExpandedOrders] = useState<string[]>([]);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("orders");
   const { clearCart } = useCart();
   const { clearWishlist } = useWishlist();
+
+  const toggleOrderDetails = (orderId: string) => {
+    setExpandedOrders(prev => 
+      prev.includes(orderId) 
+        ? prev.filter(id => id !== orderId) 
+        : [...prev, orderId]
+    );
+  };
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -120,42 +129,76 @@ export default function AccountPage() {
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    {orders.map((order: any) => (
-                      <div key={order.id} className="group border border-zinc-100 p-8 hover:border-zinc-300 transition-all">
-                        <div className="flex flex-col md:flex-row justify-between mb-8 gap-6">
-                          <div>
-                            <p className="text-[10px] uppercase tracking-widest text-zinc-400 mb-2">Reference</p>
-                            <p className="text-[14px] font-medium">#{order.id.slice(-8).toUpperCase()}</p>
+                    {orders.map((order: any) => {
+                      const isExpanded = expandedOrders.includes(order.id);
+                      return (
+                        <div key={order.id} className="group border border-zinc-100 p-8 hover:border-zinc-300 transition-all">
+                          <div className="flex flex-col md:flex-row justify-between mb-8 gap-6">
+                            <div>
+                              <p className="text-[10px] uppercase tracking-widest text-zinc-400 mb-2">Reference</p>
+                              <p className="text-[14px] font-medium">#{order.id.slice(-8).toUpperCase()}</p>
+                            </div>
+                            <div>
+                              <p className="text-[10px] uppercase tracking-widest text-zinc-400 mb-2">Order Date</p>
+                              <p className="text-[14px]">{new Date(order.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                            </div>
+                            <div>
+                              <p className="text-[10px] uppercase tracking-widest text-zinc-400 mb-2">Amount</p>
+                              <p className="text-[14px] font-medium">${order.total.toLocaleString()}</p>
+                            </div>
+                            <div>
+                              <p className="text-[10px] uppercase tracking-widest text-zinc-400 mb-2">Status</p>
+                              <span className={`text-[10px] py-1 inline-block uppercase tracking-widest font-bold ${
+                                order.status === 'PAID' ? 'text-green-600' : 'text-zinc-500'
+                              }`}>
+                                ● {order.status}
+                              </span>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-[10px] uppercase tracking-widest text-zinc-400 mb-2">Order Date</p>
-                            <p className="text-[14px]">{new Date(order.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                          </div>
-                          <div>
-                            <p className="text-[10px] uppercase tracking-widest text-zinc-400 mb-2">Amount</p>
-                            <p className="text-[14px] font-medium">${order.total.toLocaleString()}</p>
-                          </div>
-                          <div>
-                            <p className="text-[10px] uppercase tracking-widest text-zinc-400 mb-2">Status</p>
-                            <span className={`text-[10px] py-1 inline-block uppercase tracking-widest font-bold ${
-                              order.status === 'PAID' ? 'text-green-600' : 'text-zinc-500'
-                            }`}>
-                              ● {order.status}
-                            </span>
+                          
+                          {/* Order Items List */}
+                          {isExpanded && (
+                            <div className="mt-8 mb-8 p-6 bg-zinc-50 border border-zinc-100 rounded-xl animate-in fade-in slide-in-from-top-2 duration-300">
+                              <p className="text-[10px] uppercase tracking-widest text-zinc-400 mb-6 font-bold">Itemized Order</p>
+                              <div className="space-y-6">
+                                {order.items?.map((item: any, idx: number) => (
+                                  <div key={idx} className="flex items-center gap-6">
+                                    <div className="relative w-16 h-20 bg-white border border-zinc-100 rounded-lg overflow-hidden shrink-0 shadow-sm">
+                                      {item.image ? (
+                                        <img src={item.image} alt={item.name} className="object-contain w-full h-full p-2" />
+                                      ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-[10px] text-zinc-400 font-bold text-center p-1">No<br/>Image</div>
+                                      )}
+                                    </div>
+                                    <div className="flex-1">
+                                      <h4 className="text-[11px] uppercase tracking-widest font-bold leading-tight line-clamp-1">{item.name}</h4>
+                                      <p className="text-[10px] text-zinc-400 uppercase tracking-widest mt-1">Quantity: {item.quantity}</p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-[12px] font-bold">${item.price.toLocaleString()}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="flex justify-between items-center border-t border-zinc-50 pt-6">
+                            <div className="flex gap-2">
+                              <p className="text-[11px] uppercase tracking-widest text-zinc-400 font-medium">
+                                {order.items?.length || 0} {order.items?.length === 1 ? 'article' : 'articles'}
+                              </p>
+                            </div>
+                            <button 
+                              onClick={() => toggleOrderDetails(order.id)}
+                              className="text-[10px] uppercase tracking-widest font-bold flex items-center gap-2 hover:opacity-70 transition-all border-b border-black pb-0.5"
+                            >
+                              {isExpanded ? 'Hide details' : 'View details'} <ChevronRight size={14} className={`transition-transform duration-300 ${isExpanded ? 'rotate-90' : ''}`} />
+                            </button>
                           </div>
                         </div>
-                        
-                        <div className="flex justify-between items-center border-t border-zinc-50 pt-6">
-                          <div className="flex gap-2">
-                            {/* In a real app, show order item thumbnails here */}
-                            <p className="text-[12px] text-zinc-500">{order.items?.length || 0} items in this order</p>
-                          </div>
-                          <button className="text-[10px] uppercase tracking-widest font-medium flex items-center gap-2 hover:translate-x-1 transition-all">
-                            View details <ChevronRight size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </section>

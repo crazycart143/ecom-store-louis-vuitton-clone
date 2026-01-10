@@ -20,7 +20,15 @@ export async function GET(req: Request) {
 
         let match: any = {};
         if (role !== "ADMIN") {
-            match = { userId: userId };
+            console.log(`[Orders API] Fetching for user: ${userId}, email: ${session.user.email}`);
+            match = {
+                $or: [
+                    { userId: userId },
+                    { email: session.user.email }
+                ]
+            };
+        } else {
+            console.log(`[Orders API] Fetching ALL orders (ADMIN)`);
         }
 
         const orders = await db.collection("Order").aggregate([

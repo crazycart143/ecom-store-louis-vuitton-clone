@@ -52,10 +52,20 @@ export default function CheckoutPage() {
         throw new Error(errorData.error || "Checkout failed");
       }
 
-      const { id } = await res.json();
+      const { id, url } = await res.json();
+      
+      // If Stripe returns a URL, we can redirect directly
+      if (url) {
+        window.location.href = url;
+        return;
+      }
+
+      // Fallback to client-side redirection if URL is missing
       const stripe = await loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
       if (stripe) {
         await (stripe as any).redirectToCheckout({ sessionId: id });
+      } else {
+        throw new Error("Stripe failed to load");
       }
     } catch (error) {
       console.error("Checkout error:", error);

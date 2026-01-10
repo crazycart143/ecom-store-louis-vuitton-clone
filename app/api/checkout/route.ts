@@ -12,10 +12,21 @@ export async function POST(req: Request) {
 
         const line_items = items.map((item: any) => {
             const productImage = item.image || item.images?.[0]?.url;
-            // Ensure image URL is absolute for Stripe
-            const absoluteImage = productImage?.startsWith("http")
-                ? productImage
-                : `${baseUrl}${productImage?.startsWith("/") ? "" : "/"}${productImage}`;
+            let absoluteImage = null;
+
+            if (productImage) {
+                const isAbsolute = productImage.startsWith("http");
+                const path = isAbsolute ? productImage : `${baseUrl}${productImage.startsWith("/") ? "" : "/"}${productImage}`;
+                // Encode the URI to handle spaces and special characters
+                // Stripe requires absolute URLs and fails on unencoded spaces
+                absoluteImage = encodeURI(path);
+
+                // Stripe only supports JPEG, PNG, GIF. Avoid sending AVIF or WEBP if possible.
+                // If it's AVIF, we might want to skip it to avoid Stripe errors.
+                if (absoluteImage.toLowerCase().endsWith(".avif")) {
+                    absoluteImage = null; // Stripe doesn't support AVIF
+                }
+            }
 
             return {
                 price_data: {
@@ -43,12 +54,13 @@ export async function POST(req: Request) {
                     productId: i.id,
                     name: i.name,
                     price: i.price,
-                    quantity: i.quantity
+                    quantity: i.quantity,
+                    image: i.image
                 })))
             },
         });
 
-        return NextResponse.json({ id: session.id });
+        return NextResponse.json({ id: session.id, url: session.url });
     } catch (error: any) {
         console.error("Stripe error:", error);
         return NextResponse.json({ error: error.message }, { status: 500 });

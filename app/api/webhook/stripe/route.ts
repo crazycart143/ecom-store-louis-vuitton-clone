@@ -24,6 +24,7 @@ export async function POST(req: Request) {
 
     if (event.type === "checkout.session.completed") {
         const session = event.data.object as Stripe.Checkout.Session;
+        console.log(`[Webhook] Processing session ${session.id} for user ${session.metadata?.userId}`);
 
         const userId = session.metadata?.userId;
         const orderItems = JSON.parse(session.metadata?.orderItems || "[]");
@@ -31,26 +32,34 @@ export async function POST(req: Request) {
         const client = await clientPromise;
         const db = client.db();
 
-        const orderResult = await db.collection("Order").insertOne({
-            userId: userId || null,
-            email: session.customer_details?.email || "",
-            total: (session.amount_total || 0) / 100,
-            status: "PAID",
-            createdAt: new Date()
-        });
+        try {
+            const orderResult = await db.collection("Order").insertOne({
+                userId: userId || null,
+                email: session.customer_details?.email || "",
+                total: (session.amount_total || 0) / 100,
+                status: "PAID",
+                createdAt: new Date()
+            });
 
-        const orderId = orderResult.insertedId;
+            const orderId = orderResult.insertedId;
+            console.log(`[Webhook] Order created: ${orderId}`);
 
-        if (orderItems.length > 0) {
-            await db.collection("OrderItem").insertMany(
-                orderItems.map((item: any) => ({
-                    orderId,
-                    name: item.name,
-                    price: item.price,
-                    quantity: item.quantity,
-                    productId: new ObjectId(item.productId),
-                }))
-            );
+            if (orderItems.length > 0) {
+                await db.collection("OrderItem").insertMany(
+                    orderItems.map((item: any) => ({
+                        orderId,
+                        name: item.name,
+                        price: item.price,
+                        quantity: item.quantity,
+                        image: item.image,
+                        productId: item.productId ? new ObjectId(item.productId) : null,
+                    }))
+                );
+                console.log(`[Webhook] Inserted ${orderItems.length} items`);
+            }
+        } catch (dbError) {
+            console.error("[Webhook] Database error:", dbError);
+            return NextResponse.json({ error: "Database error" }, { status: 500 });
         }
     }
 

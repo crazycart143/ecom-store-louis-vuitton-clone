@@ -1,13 +1,16 @@
 import { MongoClient } from 'mongodb';
-import * as dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
 
-const uri = process.env.MONGODB_DATABASE_URL;
+const uri = process.env.MONGODB_DATABASE_URL || process.env.MONGODB_URI;
+
+if (!uri) {
+    console.error("MONGODB_DATABASE_URL or MONGODB_URI is not defined in .env");
+    process.exit(1);
+}
 
 async function check() {
     const client = new MongoClient(uri);
