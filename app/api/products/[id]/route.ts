@@ -88,7 +88,7 @@ export async function DELETE(
 ) {
     const session = await getServerSession(authOptions);
 
-    if (!session || session.user.role !== "ADMIN") {
+    if (!session || !["OWNER", "ADMIN", "MANAGER"].includes(session.user.role as string)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -124,7 +124,7 @@ export async function PATCH(
 ) {
     const session = await getServerSession(authOptions);
 
-    if (!session || (session.user as any).role !== "ADMIN") {
+    if (!session || !["OWNER", "ADMIN", "MANAGER"].includes(session.user.role as string)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -134,7 +134,7 @@ export async function PATCH(
         const params = await props.params;
         const { id } = params;
         const body = await req.json();
-        const { name, handle, price, description, categoryId, images, details } = body;
+        const { name, handle, price, description, categoryId, images, details, scheduledAt, requiredTags, stock } = body;
 
         if (!id.match(/^[0-9a-fA-F]{24}$/)) {
             return NextResponse.json({ error: "Invalid product ID" }, { status: 400 });
@@ -152,6 +152,9 @@ export async function PATCH(
                     price: parseFloat(price),
                     description,
                     categoryId: categoryId ? new ObjectId(categoryId) : null,
+                    scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+                    requiredTags: Array.isArray(requiredTags) ? requiredTags : [],
+                    stock: stock !== undefined ? parseInt(stock) : 0,
                     updatedAt: new Date()
                 }
             }

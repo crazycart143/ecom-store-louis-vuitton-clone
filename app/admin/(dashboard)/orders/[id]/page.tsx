@@ -19,8 +19,10 @@ import {
   Loader2,
   Printer,
   Trash2,
-  Ban
+  Ban,
+  Lock
 } from "lucide-react";
+import { useSession } from "next-auth/react";
 
 export default function OrderDetailPage() {
   const params = useParams();
@@ -30,6 +32,9 @@ export default function OrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [fulfilling, setFulfilling] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  const { data: session } = useSession();
+  const isStaff = session?.user?.role === "STAFF";
 
   const fetchOrder = async () => {
     if (!orderId) return;
@@ -103,25 +108,26 @@ export default function OrderDetailPage() {
   };
 
   const handleFulfill = async () => {
-    if (!order || order.fulfillment === "FULFILLED") return;
+    if (!order || order.fulfillment === "DELIVERED") return;
     
     setFulfilling(true);
     try {
-      const res = await fetch(`/api/orders/${orderId}/fulfill`, {
+      const res = await fetch(`/api/orders/${orderId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fulfillment: "DELIVERED" }),
       });
 
       if (res.ok) {
         // Refresh order data
         await fetchOrder();
-        alert("Order fulfilled successfully!");
+        toast.success("Order fulfilled successfully!");
       } else {
-        alert("Failed to fulfill order");
+        toast.error("Failed to fulfill order");
       }
     } catch (error) {
       console.error("Failed to fulfill order:", error);
-      alert("Failed to fulfill order");
+      toast.error("Failed to fulfill order");
     } finally {
       setFulfilling(false);
     }
@@ -186,22 +192,53 @@ export default function OrderDetailPage() {
         <div className="flex gap-3">
           {order.status === 'DRAFT' ? (
               <div className="flex gap-3">
-                <button 
-                  onClick={handleDelete}
-                  disabled={isProcessing}
-                  className="bg-white border border-red-200 text-red-500 px-6 py-3 rounded-lg text-[13px] font-bold uppercase tracking-widest hover:bg-red-50 transition-all flex items-center gap-2"
-                >
-                  <Trash2 size={16} />
-                  Discard Draft
-                </button>
-                <button 
-                  onClick={handleFinalize}
-                  disabled={isProcessing}
-                  className="bg-zinc-900 text-white px-8 py-3 rounded-xl text-[13px] font-black uppercase tracking-[0.2em] hover:bg-black transition-all flex items-center gap-2 shadow-xl shadow-black/10"
-                >
-                  {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <DollarSign size={16} />}
-                  Collect Payment
-                </button>
+                {isStaff ? (
+                  <div className="relative group">
+                    <button 
+                      disabled
+                      className="bg-zinc-100 text-zinc-400 px-6 py-3 rounded-lg text-[13px] font-bold flex items-center gap-2 cursor-not-allowed border border-zinc-200"
+                    >
+                      <Lock size={16} />
+                      Discard Draft
+                    </button>
+                    <div className="absolute bottom-full right-0 mb-2 w-48 px-3 py-2 bg-zinc-900 text-white text-[10px] font-bold uppercase tracking-widest rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-center shadow-xl ring-1 ring-white/10">
+                      Staff cannot delete draft records
+                    </div>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={handleDelete}
+                    disabled={isProcessing}
+                    className="bg-white border border-red-200 text-red-500 px-6 py-3 rounded-lg text-[13px] font-bold uppercase tracking-widest hover:bg-red-50 transition-all flex items-center gap-2"
+                  >
+                    <Trash2 size={16} />
+                    Discard Draft
+                  </button>
+                )}
+
+                {isStaff ? (
+                  <div className="relative group">
+                    <button 
+                      disabled
+                      className="bg-zinc-100 text-zinc-400 px-8 py-3 rounded-xl text-[13px] font-black flex items-center gap-2 cursor-not-allowed border border-zinc-200"
+                    >
+                      <Lock size={16} />
+                      Collect Payment
+                    </button>
+                    <div className="absolute bottom-full right-0 mb-2 w-48 px-3 py-2 bg-zinc-900 text-white text-[10px] font-bold uppercase tracking-widest rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-center shadow-xl ring-1 ring-white/10">
+                      Fiscal authorization required
+                    </div>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={handleFinalize}
+                    disabled={isProcessing}
+                    className="bg-zinc-900 text-white px-8 py-3 rounded-xl text-[13px] font-black uppercase tracking-[0.2em] hover:bg-black transition-all flex items-center gap-2 shadow-xl shadow-black/10"
+                  >
+                    {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <DollarSign size={16} />}
+                    Collect Payment
+                  </button>
+                )}
               </div>
           ) : (
             <>
@@ -214,9 +251,9 @@ export default function OrderDetailPage() {
               </button>
               <button 
                 onClick={handleFulfill}
-                disabled={order.fulfillment === "FULFILLED" || order.status === "CANCELLED" || fulfilling || isProcessing}
+                disabled={order.fulfillment === "DELIVERED" || order.status === "CANCELLED" || fulfilling || isProcessing}
                 className={`px-6 py-3 rounded-lg text-[13px] font-medium transition-all flex items-center gap-2 ${
-                  order.fulfillment === "FULFILLED" || order.status === "CANCELLED"
+                  order.fulfillment === "DELIVERED" || order.status === "CANCELLED"
                     ? "bg-zinc-100 text-zinc-400 cursor-not-allowed"
                     : "bg-black text-white hover:bg-zinc-800"
                 }`}
@@ -226,7 +263,7 @@ export default function OrderDetailPage() {
                     <Loader2 size={16} className="animate-spin" />
                     Fulfilling...
                   </>
-                ) : order.fulfillment === "FULFILLED" ? (
+                ) : order.fulfillment === "DELIVERED" ? (
                   <>
                     <CheckCircle2 size={16} />
                     Already Fulfilled
@@ -320,8 +357,14 @@ export default function OrderDetailPage() {
             <div className="p-6 border-t border-zinc-100 bg-zinc-50 space-y-2 print:bg-white print:px-0 print:border-zinc-200">
               <div className="flex justify-between text-[13px] print:text-[12px]">
                 <span className="text-zinc-600">Subtotal</span>
-                <span className="font-medium">${order.total.toLocaleString()}</span>
+                <span className="font-medium">${(order.subtotal || order.total).toLocaleString()}</span>
               </div>
+              {order.discountAmount > 0 && (
+                <div className="flex justify-between text-[13px] print:text-[12px] text-red-600">
+                  <span className="text-zinc-600">Discount {order.discountCode ? `(${order.discountCode})` : ''}</span>
+                  <span className="font-medium">-${order.discountAmount.toLocaleString()}</span>
+                </div>
+              )}
               <div className="flex justify-between text-[13px] print:text-[12px]">
                 <span className="text-zinc-600">Shipping</span>
                 <span className="font-medium">Free</span>
@@ -408,7 +451,7 @@ export default function OrderDetailPage() {
                 <span className="text-[13px] text-zinc-600">Fulfillment</span>
                 <span
                   className={`text-[10px] px-2.5 py-1 rounded-full font-bold tracking-widest uppercase ${
-                    order.fulfillment === "FULFILLED"
+                    order.fulfillment === "DELIVERED"
                       ? "bg-green-50 text-green-700"
                       : "bg-yellow-50 text-yellow-700"
                   }`}
@@ -502,18 +545,18 @@ export default function OrderDetailPage() {
 
               {/* Event: Fulfillment */}
               <div className="relative flex items-center gap-4 group">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 z-10 border-4 border-white shadow-sm ring-1 ring-zinc-100 ${order.fulfillment === 'FULFILLED' ? 'bg-black' : 'bg-zinc-100'}`}>
-                  <Truck size={14} className={order.fulfillment === 'FULFILLED' ? 'text-white' : 'text-zinc-400'} />
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 z-10 border-4 border-white shadow-sm ring-1 ring-zinc-100 ${order.fulfillment === 'DELIVERED' ? 'bg-black' : 'bg-zinc-100'}`}>
+                  <Truck size={14} className={order.fulfillment === 'DELIVERED' ? 'text-white' : 'text-zinc-400'} />
                 </div>
                 <div className="flex-1">
                    <div className="flex justify-between items-start">
                     <p className="text-[13px] font-bold text-zinc-900">Fulfillment</p>
-                    {order.fulfillment === 'FULFILLED' && (
+                    {order.fulfillment === 'DELIVERED' && (
                         <time className="text-[10px] text-zinc-400 font-mono">Recently</time>
                     )}
                   </div>
                   <p className="text-[11px] text-zinc-500 mt-0.5">
-                    {order.fulfillment === 'FULFILLED' ? 'Order has been picked, packed and shipped' : 'Items are ready for fulfillment'}
+                    {order.fulfillment === 'DELIVERED' ? 'Order has been picked, packed and shipped' : 'Items are ready for fulfillment'}
                   </p>
                 </div>
               </div>

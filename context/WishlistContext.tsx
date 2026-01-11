@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Product } from "@/lib/data";
 import { toast } from "sonner";
+import { useSession } from "next-auth/react";
 
 interface WishlistContextType {
   wishlist: Product[];
@@ -18,45 +19,110 @@ const WishlistContext = createContext<WishlistContextType | undefined>(undefined
 export function WishlistProvider({ children }: { children: React.ReactNode }) {
   const [wishlist, setWishlist] = useState<Product[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const { data: session, status } = useSession();
 
-  const clearWishlist = () => {
-    setWishlist([]);
-    localStorage.removeItem("lv_wishlist");
-  };
-
-  // Load from local storage
+  // 1. Initial Load from LocalStorage (for guests)
   useEffect(() => {
-    const saved = localStorage.getItem("lv_wishlist");
-    if (saved) {
+    const savedWishlist = localStorage.getItem("lv_wishlist");
+    if (savedWishlist) {
       try {
-        setWishlist(JSON.parse(saved));
+        setWishlist(JSON.parse(savedWishlist));
       } catch (e) {
-        console.error("Failed to parse wishlist", e);
+        console.error("Failed to parse local wishlist");
       }
     }
     setIsLoaded(true);
   }, []);
 
-  // Save to local storage
+  // 2. Load/Sync with DB when user logs in
   useEffect(() => {
-    if (isLoaded) {
+    if (status === "authenticated" && isLoaded) {
+      const syncWishlist = async () => {
+        try {
+          const res = await fetch("/api/user/wishlist");
+          if (res.ok) {
+            const dbWishlist = await res.json();
+            
+            // Optional: Merge local wishlist into DB for first-time login
+            const localWishlist = JSON.parse(localStorage.getItem("lv_wishlist") || "[]");
+            if (localWishlist.length > 0) {
+              for (const item of localWishlist) {
+                if (!dbWishlist.find((dbItem: any) => dbItem.id === item.id)) {
+                  // Add local item to DB
+                  await fetch("/api/user/wishlist", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ productId: item.id })
+                  });
+                  dbWishlist.push(item);
+                }
+              }
+              // Clear local storage after merging
+              localStorage.removeItem("lv_wishlist");
+            }
+            
+            setWishlist(dbWishlist);
+          }
+        } catch (err) {
+          console.error("Failed to fetch/sync wishlist", err);
+        }
+      };
+      syncWishlist();
+    }
+  }, [status, isLoaded]);
+
+  // 3. Keep LocalStorage in sync (only for guests)
+  useEffect(() => {
+    if (isLoaded && status === "unauthenticated") {
       localStorage.setItem("lv_wishlist", JSON.stringify(wishlist));
     }
-  }, [wishlist, isLoaded]);
+  }, [wishlist, isLoaded, status]);
 
-  const addToWishlist = (product: Product) => {
-    setWishlist((prev) => {
-      if (prev.find((item) => item.id === product.id)) return prev;
-      toast.success(`${product.name} added to wishlist`);
-      return [...prev, product];
-    });
+  const clearWishlist = () => {
+    setWishlist([]);
+    if (status === "unauthenticated") {
+      localStorage.removeItem("lv_wishlist");
+    }
+    // We don't necessarily want to clear DB on local 'clear' unless specified
   };
 
-  const removeFromWishlist = (productId: string) => {
+  const addToWishlist = async (product: Product) => {
+    if (isInWishlist(product.id)) return;
+
+    setWishlist((prev) => [...prev, product]);
+    toast.success(`${product.name} added to wishlist`);
+
+    if (status === "authenticated") {
+      try {
+        await fetch("/api/user/wishlist", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ productId: product.id })
+        });
+      } catch (err) {
+        console.error("Failed to sync wishlist add", err);
+      }
+    }
+  };
+
+  const removeFromWishlist = async (productId: string) => {
     const itemToRemove = wishlist.find(i => i.id === productId);
     setWishlist((prev) => prev.filter((item) => item.id !== productId));
+    
     if (itemToRemove) {
       toast.info(`${itemToRemove.name} removed from wishlist`);
+    }
+
+    if (status === "authenticated") {
+      try {
+        await fetch("/api/user/wishlist", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ productId })
+        });
+      } catch (err) {
+        console.error("Failed to sync wishlist remove", err);
+      }
     }
   };
 

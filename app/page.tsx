@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { Header } from "@/components/Header";
 import Link from "next/link";
 import { Hero } from "@/components/Hero";
@@ -7,14 +10,30 @@ import { VideoSection } from "@/components/VideoSection";
 import { CollectionSection } from "@/components/CollectionSection";
 import { LatestWomenSection } from "@/components/LatestWomenSection";
 import { MonogramMidnightSection } from "@/components/MonogramMidnightSection";
+import { PageLoader } from "@/components/PageLoader";
 
 import { Reveal } from "@/components/Reveal";
+import { useEffect } from "react";
 
 export default function Home() {
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fail-safe: If the video takes too long, hide the loader anyway
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 6000); // 6 seconds max loading time
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <main className="min-h-screen bg-white">
+      <PageLoader isLoading={isLoading} />
       <Header />
-      <Hero />
+      <Hero 
+        onReady={() => setIsLoading(false)} 
+        onError={() => setIsLoading(false)}
+      />
       
       <Reveal>
         <CategoryGrid />

@@ -199,10 +199,10 @@ export function AdminOnboarding({ onRestartAction }: { onRestartAction?: () => v
     return (
       <button
         onClick={resetOnboarding}
-        className="fixed bottom-6 right-6 bg-black text-white px-5 py-2.5 rounded-full text-[11px] font-black uppercase tracking-widest hover:bg-zinc-800 transition-all shadow-2xl z-50 flex items-center gap-2 border border-white/10"
+        className="fixed bottom-6 right-6 bg-black text-white px-3 py-3 rounded-full text-[11px] font-black uppercase tracking-widest hover:bg-zinc-800 transition-all shadow-2xl z-50 flex items-center group border border-white/10"
       >
-        <HelpCircle size={14} />
-        Guide
+        <HelpCircle size={18} />
+        <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-300 ease-in-out group-hover:ml-2 whitespace-nowrap">Guide</span>
       </button>
     );
   }

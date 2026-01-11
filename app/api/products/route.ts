@@ -41,6 +41,22 @@ export async function GET(req: Request) {
                 }
             },
             {
+                $lookup: {
+                    from: "User",
+                    let: { productId: { $toString: "$_id" } },
+                    pipeline: [
+                        { $match: { $expr: { $in: ["$$productId", { $ifNull: ["$wishlist", []] }] } } },
+                        { $project: { _id: 1 } }
+                    ],
+                    as: "wishlistedBy"
+                }
+            },
+            {
+                $addFields: {
+                    wishlistCount: { $size: "$wishlistedBy" }
+                }
+            },
+            {
                 $sort: { createdAt: -1 }
             }
         ];
@@ -55,15 +71,33 @@ export async function GET(req: Request) {
 
         const products = await db.collection("Product").aggregate(pipeline).toArray();
 
+        const session = await getServerSession(authOptions);
+        const isAdminOrStaff = session && ["OWNER", "ADMIN", "MANAGER", "STAFF"].includes(session.user.role as string);
+        const userTags = (session?.user as any)?.tags || [];
+
         // Convert MongoDB _id to id for frontend compatibility
-        const formattedProducts = products.map(p => ({
-            ...p,
-            id: p._id.toString(),
-            categoryId: p.categoryId?.toString(),
-            images: p.images.map((img: any) => ({ ...img, id: img._id.toString() })),
-            details: p.details.map((detail: any) => ({ ...detail, id: detail._id.toString() })),
-            category: p.category ? { ...p.category, id: p.category._id.toString() } : null
-        }));
+        const formattedProducts = products
+            .filter(p => {
+                // Admin/Staff see everything
+                if (isAdminOrStaff) return true;
+
+                // VIP Gating: If product has tags, user must have at least one
+                if (Array.isArray(p.requiredTags) && p.requiredTags.length > 0) {
+                    if (!session) return false; // Guests see nothing gated
+                    const hasTag = p.requiredTags.some((tag: string) => userTags.includes(tag));
+                    if (!hasTag) return false;
+                }
+
+                return true;
+            })
+            .map(p => ({
+                ...p,
+                id: p._id.toString(),
+                categoryId: p.categoryId?.toString(),
+                images: p.images.map((img: any) => ({ ...img, id: img._id.toString() })),
+                details: p.details.map((detail: any) => ({ ...detail, id: detail._id.toString() })),
+                category: p.category ? { ...p.category, id: p.category._id.toString() } : null
+            }));
 
         return NextResponse.json(formattedProducts);
     } catch (error: any) {
@@ -78,13 +112,13 @@ import { authOptions } from "@/lib/auth";
 export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
 
-    if (!session || session.user.role !== "ADMIN") {
+    if (!session || !["OWNER", "ADMIN", "MANAGER"].includes(session.user.role)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     try {
         const body = await req.json();
-        const { name, handle, price, description, categoryId, images, details } = body;
+        const { name, handle, price, description, categoryId, images, details, scheduledAt, requiredTags, stock } = body;
 
         const client = await clientPromise;
         const db = client.db();
@@ -96,6 +130,9 @@ export async function POST(req: Request) {
             price: parseFloat(price),
             description,
             categoryId: categoryId ? new ObjectId(categoryId) : null,
+            scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+            requiredTags: Array.isArray(requiredTags) ? requiredTags : [],
+            stock: stock ? parseInt(stock) : 0,
             createdAt: new Date(),
             updatedAt: new Date()
         });

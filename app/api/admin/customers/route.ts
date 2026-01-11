@@ -6,7 +6,7 @@ import { authOptions } from "@/lib/auth";
 export async function GET() {
     const session = await getServerSession(authOptions);
 
-    if (!session || !["ADMIN", "MANAGER", "STAFF"].includes(session.user.role)) {
+    if (!session || !["OWNER", "ADMIN", "MANAGER"].includes(session.user.role)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -82,7 +82,7 @@ export async function GET() {
 
 export async function PATCH(req: Request) {
     const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== "ADMIN") {
+    if (!session || !["OWNER", "ADMIN"].includes(session.user.role)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -92,7 +92,7 @@ export async function PATCH(req: Request) {
         const { userId, role } = await req.json();
         const { ObjectId } = await import("mongodb");
 
-        if (!["USER", "ADMIN", "MANAGER", "STAFF"].includes(role)) {
+        if (!["USER", "ADMIN", "MANAGER", "STAFF", "OWNER"].includes(role)) {
             return NextResponse.json({ error: "Invalid role" }, { status: 400 });
         }
 

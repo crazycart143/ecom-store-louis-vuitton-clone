@@ -7,7 +7,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 export async function POST(req: Request) {
     try {
-        const { items, email, userId, shippingDetails } = await req.json();
+        const { items, email, userId, shippingDetails, discountCode } = await req.json();
 
         // Calculate total amount
         const amount = items.reduce((acc: number, item: any) => acc + item.price * item.quantity, 0);
@@ -39,6 +39,34 @@ export async function POST(req: Request) {
 
         const client = await clientPromise;
         const db = client.db();
+
+        let finalAmount = amount;
+
+        if (discountCode) {
+            const discount = await db.collection("Discount").findOne({
+                code: discountCode.trim().toUpperCase(),
+                status: "active"
+            });
+
+            if (discount) {
+                // Perform Basic Validations (Mirroring validate-discount endpoint)
+                const now = new Date();
+                const expiryValid = !discount.expiryDate || new Date(discount.expiryDate) > now;
+                const limitValid = discount.usageLimit === null || discount.usedCount < discount.usageLimit;
+                const minPurchaseValid = !discount.minPurchase || amount >= discount.minPurchase;
+
+                if (expiryValid && limitValid && minPurchaseValid) {
+                    const discountVal = discount.type === 'percentage'
+                        ? amount * (discount.value / 100)
+                        : discount.value;
+                    finalAmount = Math.max(0, amount - discountVal);
+
+                    // Update Metadata
+                    (metadata as any).discountCode = discount.code;
+                    (metadata as any).originalAmount = amount.toString();
+                }
+            }
+        }
         let customerId = null;
 
         if (userId) {
@@ -62,7 +90,7 @@ export async function POST(req: Request) {
 
         // Create Payment Intent
         const paymentIntent = await stripe.paymentIntents.create({
-            amount: Math.round(amount * 100),
+            amount: Math.round(finalAmount * 100),
             currency: "usd",
             customer: customerId || undefined,
             receipt_email: email || undefined,

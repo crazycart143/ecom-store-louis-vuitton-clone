@@ -8,7 +8,7 @@ export async function PATCH(req: Request) {
     const session = await getServerSession(authOptions);
 
     // Authorization check
-    if (!session || !["ADMIN", "MANAGER", "STAFF"].includes(session.user.role as string)) {
+    if (!session || !["OWNER", "ADMIN", "MANAGER", "STAFF"].includes(session.user.role as string)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -28,7 +28,7 @@ export async function PATCH(req: Request) {
         let auditAction = "";
 
         if (action === "fulfill") {
-            updateData = { fulfillment: "FULFILLED" };
+            updateData = { fulfillment: "DELIVERED" };
             auditAction = "BATCH_FULFILLED";
         } else if (action === "unfulfill") {
             updateData = { fulfillment: "UNFULFILLED" };

@@ -6,17 +6,21 @@ import {
   Search, 
   Plus, 
   Loader2,
-  Trash2,
-  MoreHorizontal
+  Trash2
 } from "lucide-react";
 import { toast } from "sonner";
+import { useSession } from "next-auth/react";
+import { Lock } from "lucide-react";
 
 export default function AdminCollections() {
-  const [collections, setCollections] = useState([]);
+  const [collections, setCollections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState("");
   const [saving, setSaving] = useState(false);
+  
+  const { data: session } = useSession();
+  const isStaff = session?.user?.role === "STAFF";
 
   const fetchCollections = () => {
     fetch("/api/categories")
@@ -66,13 +70,28 @@ export default function AdminCollections() {
           <h1 className="text-2xl font-bold text-zinc-900">Collections</h1>
           <p className="text-zinc-500 text-[13px] mt-1">Organize your products into catalog categories.</p>
         </div>
-        <button 
-          onClick={() => setIsCreating(true)}
-          className="bg-black text-white px-6 py-3 rounded-lg text-[13px] font-medium hover:bg-zinc-800 transition-all flex items-center gap-2"
-        >
-          <Plus size={18} />
-          Create Collection
-        </button>
+        {isStaff ? (
+          <div className="relative group">
+            <button 
+              disabled
+              className="bg-zinc-100 text-zinc-400 px-6 py-3 rounded-lg text-[13px] font-medium flex items-center gap-2 cursor-not-allowed border border-zinc-200"
+            >
+              <Lock size={16} />
+              Create Collection
+            </button>
+            <div className="absolute bottom-full right-0 mb-2 w-48 px-3 py-2 bg-zinc-900 text-white text-[10px] font-bold uppercase tracking-widest rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-center shadow-xl ring-1 ring-white/10">
+              Only Managers and higher can manage collections
+            </div>
+          </div>
+        ) : (
+          <button 
+            onClick={() => setIsCreating(true)}
+            className="bg-black text-white px-6 py-3 rounded-lg text-[13px] font-medium hover:bg-zinc-800 transition-all flex items-center gap-2"
+          >
+            <Plus size={18} />
+            Create Collection
+          </button>
+        )}
       </div>
 
       {isCreating && (
@@ -145,12 +164,23 @@ export default function AdminCollections() {
                             </div>
                         </td>
                         <td className="px-6 py-4 text-[13px] text-zinc-500 font-mono">{collection.slug}</td>
-                        <td className="px-6 py-4 text-[13px] text-zinc-500">-</td>
+                        <td className="px-6 py-4 text-[13px] text-zinc-500">{collection.productsCount || 0} Products</td>
                         <td className="px-6 py-4">
                         <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button className="p-2 hover:bg-zinc-100 rounded-lg text-zinc-400 hover:text-red-500 transition-colors">
-                                <Trash2 size={16} />
-                            </button>
+                            {isStaff ? (
+                              <div className="relative group/del">
+                                <button disabled className="p-2 text-zinc-200 cursor-not-allowed">
+                                    <Trash2 size={16} />
+                                </button>
+                                <div className="absolute bottom-full right-0 mb-2 w-32 px-2 py-1 bg-zinc-900 text-white text-[9px] font-bold uppercase tracking-widest rounded-md opacity-0 group-hover/del:opacity-100 transition-opacity pointer-events-none z-50 text-center">
+                                  Permission Required
+                                </div>
+                              </div>
+                            ) : (
+                              <button className="p-2 hover:bg-zinc-100 rounded-lg text-zinc-400 hover:text-red-500 transition-colors">
+                                  <Trash2 size={16} />
+                              </button>
+                            )}
                         </div>
                         </td>
                     </tr>

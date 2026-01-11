@@ -14,6 +14,8 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { toast } from "sonner";
+import { useSession } from "next-auth/react";
+import { Lock } from "lucide-react";
 
 export default function AdminMedia() {
   const [images, setImages] = useState<any[]>([]);
@@ -21,6 +23,9 @@ export default function AdminMedia() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [newUrl, setNewUrl] = useState("");
+  
+  const { data: session } = useSession();
+  const isStaff = session?.user?.role === "STAFF";
 
   const fetchImages = async () => {
     // In our simplified schema, we get images from the Image collection
@@ -60,13 +65,28 @@ export default function AdminMedia() {
           <h1 className="text-2xl font-bold text-zinc-900">Media Library</h1>
           <p className="text-zinc-500 text-[13px] mt-1">Manage global product assets and brand imagery.</p>
         </div>
-        <button 
-          onClick={() => setIsUploadModalOpen(true)}
-          className="bg-black text-white px-6 py-3 rounded-lg text-[13px] font-medium hover:bg-zinc-800 transition-all flex items-center gap-2"
-        >
-          <Upload size={18} />
-          Add Media
-        </button>
+        {isStaff ? (
+          <div className="relative group">
+            <button 
+              disabled
+              className="bg-zinc-100 text-zinc-400 px-6 py-3 rounded-lg text-[13px] font-medium flex items-center gap-2 cursor-not-allowed border border-zinc-200"
+            >
+              <Lock size={18} />
+              Add Media
+            </button>
+            <div className="absolute bottom-full right-0 mb-2 w-48 px-3 py-2 bg-zinc-900 text-white text-[10px] font-bold uppercase tracking-widest rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-center shadow-xl ring-1 ring-white/10">
+              Only Managers can upload global assets
+            </div>
+          </div>
+        ) : (
+          <button 
+            onClick={() => setIsUploadModalOpen(true)}
+            className="bg-black text-white px-6 py-3 rounded-lg text-[13px] font-medium hover:bg-zinc-800 transition-all flex items-center gap-2"
+          >
+            <Upload size={18} />
+            Add Media
+          </button>
+        )}
       </div>
 
       <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
@@ -93,7 +113,7 @@ export default function AdminMedia() {
           ) : filteredImages.length === 0 ? (
             <div className="py-24 text-center">
               <ImageIcon className="mx-auto text-zinc-100 mb-4" size={64} strokeWidth={1} />
-              <h3 className="text-lg font-medium text-zinc-400 font-serif lowercase italic">No luxury assets found</h3>
+              <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">No luxury assets found</h3>
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
@@ -137,7 +157,7 @@ export default function AdminMedia() {
       {isUploadModalOpen && (
         <div className="fixed inset-0 z-100 flex items-center justify-center p-6 bg-black/40 backdrop-blur-sm">
           <div className="bg-white rounded-3xl p-10 max-w-lg w-full shadow-2xl space-y-8 animate-in zoom-in-95 duration-300">
-            <div className="flex justify-between items-start font-serif">
+            <div className="flex justify-between items-start">
               <div>
                 <h2 className="text-2xl font-bold">Import Luxury Asset</h2>
                 <p className="text-zinc-400 text-[13px] mt-1">Provide a high-resolution image URL to add to your global library.</p>
@@ -168,7 +188,7 @@ export default function AdminMedia() {
                   setNewUrl("");
                 }
               }}
-              className="w-full bg-black text-white py-5 rounded-2xl text-[13px] uppercase tracking-[0.2em] font-bold hover:bg-zinc-800 transition-all font-serif"
+              className="w-full bg-black text-white py-5 rounded-2xl text-[13px] uppercase tracking-[0.2em] font-bold hover:bg-zinc-800 transition-all"
             >
               Confirm Import
             </button>

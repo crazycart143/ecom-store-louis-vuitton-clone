@@ -2,13 +2,25 @@
 
 import { motion, useScroll, useTransform } from "framer-motion";
 import { ChevronDown } from "lucide-react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
+interface HeroProps {
+  onReady?: () => void;
+  onError?: () => void;
+}
 
-export function Hero() {
+export function Hero({ onReady, onError }: HeroProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const { scrollY } = useScroll();
   const y1 = useTransform(scrollY, [0, 500], [0, 200]);
   const opacity = useTransform(scrollY, [0, 300], [1, 0]);
+
+  // Handle cached videos
+  useEffect(() => {
+    if (videoRef.current && videoRef.current.readyState >= 3) {
+      onReady?.();
+    }
+  }, [onReady]);
 
   return (
     <section ref={containerRef} className="relative h-[110vh] flex items-center justify-center overflow-hidden bg-black">
@@ -19,10 +31,14 @@ export function Hero() {
       >
         <div className="absolute inset-0 bg-black/30 z-10" />
         <video
+          ref={videoRef}
           autoPlay
           muted
           loop
           playsInline
+          onLoadedData={onReady}
+          onCanPlayThrough={onReady}
+          onError={onError}
           className="w-full h-full object-cover"
         >
           <source src="https://vod.freecaster.com/louisvuitton/a0b5cc73-c0b8-4796-b8ee-0da3533eca07/OaSv8GvtSX5fmfhOlVcH6EFU_11.mp4" type="video/mp4" />

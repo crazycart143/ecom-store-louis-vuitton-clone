@@ -12,18 +12,24 @@ import {
   Trash2,
   Edit,
   ChevronDown,
-  X
+  X,
+  Download,
+  Lock
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { toast } from "sonner";
 import { useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { toast } from "sonner";
 
 function ProductsContent() {
-  const [products, setProducts] = useState([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   
+  const { data: session } = useSession();
+  const isStaff = session?.user?.role === "STAFF";
+
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get("q") || "";
   const [searchQuery, setSearchQuery] = useState(initialQuery);
@@ -35,9 +41,34 @@ function ProductsContent() {
     fetch("/api/products")
       .then((res) => res.json())
       .then((data) => {
-        setProducts(data);
+        if (Array.isArray(data)) {
+            setProducts(data);
+        }
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
         setLoading(false);
       });
+  };
+
+  const handleExport = async () => {
+    try {
+        const res = await fetch("/api/admin/export/products");
+        if (!res.ok) throw new Error("Export failed");
+        
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `maison_products_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        toast.success("Maison Catalog Exported");
+    } catch (error) {
+        toast.error("Failed to export catalog");
+    }
   };
 
   useEffect(() => {
@@ -66,8 +97,8 @@ function ProductsContent() {
   };
 
   const filteredProducts = products.filter((p: any) => 
-    (p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.handle.toLowerCase().includes(searchQuery.toLowerCase())) &&
+    (p.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    p.handle?.toLowerCase().includes(searchQuery.toLowerCase())) &&
     (activeCategory === "all" || p.category?.name === activeCategory)
   );
 
@@ -78,19 +109,118 @@ function ProductsContent() {
           <h1 className="text-2xl font-bold text-zinc-900">Products</h1>
           <p className="text-zinc-500 text-[13px] mt-1">Manage your catalog, stock and visibility.</p>
         </div>
-        <Link 
-          href="/admin/products/new"
-          className="bg-black text-white px-6 py-3 rounded-lg text-[13px] font-medium hover:bg-zinc-800 transition-all flex items-center gap-2"
-        >
-          <Plus size={18} />
-          Add Product
-        </Link>
+        
+        <div className="flex gap-3">
+          <input 
+            type="file" 
+            id="import-csv" 
+            className="hidden" 
+            accept=".csv"
+            onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+
+                const loadingToast = toast.loading("Importing products...");
+
+                try {
+                    const text = await file.text();
+                    // Simple CSV Parser
+                    const lines = text.split(/\r?\n/);
+                    const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g, '').trim().toLowerCase());
+                    
+                    const products = [];
+                    for (let i = 1; i < lines.length; i++) {
+                        if (!lines[i].trim()) continue;
+                        const row = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                        const obj: any = {};
+                        
+                        headers.forEach((h, index) => {
+                            let val = row[index] ? row[index].trim() : '';
+                            val = val.replace(/^"|"$/g, '').replace(/""/g, '"');
+                            
+                            if (h === 'images' || h === 'details') {
+                                obj[h] = val.split('|').map(s => s.trim()).filter(Boolean);
+                            } else {
+                                obj[h] = val;
+                            }
+                        });
+                        if (obj.name) products.push(obj);
+                    }
+
+                    if (products.length === 0) throw new Error("No valid products found in CSV");
+
+                    const res = await fetch("/api/admin/import/products", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ products })
+                    });
+
+                    const data = await res.json();
+                    
+                    if (res.ok) {
+                        toast.success(`Imported ${data.imported} products successfully`);
+                        if (data.errors?.length > 0) {
+                            toast.warning(`Check console for ${data.errors.length} skipped items`);
+                            console.warn("Import warnings:", data.errors);
+                        }
+                        fetchProducts();
+                    } else {
+                        throw new Error(data.error || "Import failed");
+                    }
+                } catch (error: any) {
+                    console.error(error);
+                    toast.error(error.message || "Failed to parse or import CSV");
+                } finally {
+                    toast.dismiss(loadingToast);
+                    e.target.value = ''; // Reset input
+                }
+            }}
+          />
+          <button 
+            onClick={() => document.getElementById('import-csv')?.click()}
+            className="bg-white text-zinc-900 px-6 py-3 rounded-xl text-[13px] font-bold border border-zinc-200 hover:bg-zinc-50 transition-all flex items-center gap-2 shadow-sm uppercase tracking-widest active:scale-95"
+          >
+            <Download size={18} className="rotate-180" />
+            Import CSV
+          </button>
+          
+          <button 
+            onClick={handleExport}
+            className="bg-white text-zinc-900 px-6 py-3 rounded-xl text-[13px] font-bold border border-zinc-200 hover:bg-zinc-50 transition-all flex items-center gap-2 shadow-sm uppercase tracking-widest active:scale-95"
+          >
+            <Download size={18} />
+            Export CSV
+          </button>
+
+          {isStaff ? (
+            <div className="relative group">
+              <button 
+                disabled
+                className="bg-zinc-100 text-zinc-400 px-6 py-3 rounded-xl text-[13px] font-bold flex items-center gap-2 cursor-not-allowed border border-zinc-200 uppercase tracking-widest"
+              >
+                <Lock size={16} />
+                Add Product
+              </button>
+              <div className="absolute bottom-full right-0 mb-2 w-48 px-3 py-2 bg-zinc-900 text-white text-[10px] font-bold uppercase tracking-widest rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-center shadow-xl ring-1 ring-white/10">
+                Only Managers and higher can add products
+              </div>
+            </div>
+          ) : (
+            <Link 
+              href="/admin/products/new"
+              className="bg-black text-white px-6 py-3 rounded-xl text-[13px] font-bold hover:bg-zinc-800 transition-all flex items-center gap-2 shadow-xl shadow-black/10 uppercase tracking-widest active:scale-95"
+            >
+              <Plus size={18} />
+              Add Product
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
         {/* Filters Bar */}
         <div className="p-6 border-b border-zinc-100 flex flex-col md:flex-row justify-between gap-4">
-          <div className="flex items-center gap-4 bg-zinc-50 px-4 py-3 rounded-xl w-full md:w-96 border border-zinc-100">
+          <div className="flex items-center gap-4 bg-zinc-50 px-4 py-3 rounded-xl w-full md:w-96 border border-zinc-100 shadow-inner">
             <Search size={16} className="text-zinc-400" />
             <input 
               type="text" 
@@ -153,9 +283,10 @@ function ProductsContent() {
                 <tr>
                   <th className="px-6 py-4 text-left">Product</th>
                   <th className="px-6 py-4 text-left">Handle</th>
-                  <th className="px-6 py-4 text-left">Status</th>
+                  <th className="px-6 py-4 text-left">Visibility</th>
                   <th className="px-6 py-4 text-left">Category</th>
                   <th className="px-6 py-4 text-left">Price</th>
+                  <th className="px-6 py-4 text-center">Wishlisted</th>
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
@@ -180,35 +311,85 @@ function ProductsContent() {
                     </td>
                     <td className="px-6 py-4 text-[13px] text-zinc-500 font-mono">{product.handle}</td>
                     <td className="px-6 py-4">
-                      <span className="text-[10px] px-2 py-1 rounded-full bg-green-50 text-green-600 font-bold tracking-widest uppercase">
-                        Active
-                      </span>
+                      <div className="flex flex-col gap-1">
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full w-fit font-bold tracking-widest uppercase ${product.scheduledAt && new Date(product.scheduledAt) > new Date() ? 'bg-amber-50 text-amber-600' : 'bg-green-50 text-green-600'}`}>
+                            {product.scheduledAt && new Date(product.scheduledAt) > new Date() ? 'Scheduled' : 'Live'}
+                        </span>
+                        {product.requiredTags?.length > 0 && (
+                            <span className="text-[9px] text-zinc-400 font-black uppercase tracking-tighter flex items-center gap-1">
+                                <Lock size={10} /> {product.requiredTags.join(', ')}
+                            </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-[13px] text-zinc-600">
                       {product.category?.name || "Uncategorized"}
                     </td>
-                    <td className="px-6 py-4 text-[13px] font-bold text-black">${product.price.toLocaleString()}</td>
+                    <td className="px-6 py-4 text-[13px] font-bold text-black font-sans">${product.price?.toLocaleString()}</td>
+                    <td className="px-6 py-4 text-[13px] text-zinc-500 text-center">
+                        <span className="inline-flex items-center gap-1 bg-red-50 text-red-600 px-2.5 py-1 rounded-full text-[11px] font-bold">
+                             {product.wishlistCount || 0}
+                        </span>
+                    </td>
                     <td className="px-6 py-4">
                       <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Link 
-                          href={`/admin/products/edit/${product.id}`}
-                          className="p-2 hover:bg-zinc-100 rounded-lg text-zinc-400 hover:text-black transition-colors"
-                        >
-                          <Edit size={16} />
-                        </Link>
-                        <button 
-                          onClick={() => handleDelete(product.id)}
-                          className="p-2 hover:bg-zinc-100 rounded-lg text-zinc-400 hover:text-red-500 transition-colors"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                        <Link 
-                          href={`/product/${product.handle}`} 
-                          target="_blank"
-                          className="p-2 hover:bg-zinc-100 rounded-lg text-zinc-400 hover:text-black transition-colors"
-                        >
-                          <ExternalLink size={16} />
-                        </Link>
+                        {isStaff ? (
+                          <>
+                            <div className="relative group/action">
+                                <button disabled className="p-2 text-zinc-200 cursor-not-allowed">
+                                    <Edit size={16} />
+                                </button>
+                                <div className="absolute bottom-full right-0 mb-2 w-max px-2 py-1 bg-zinc-900 text-white text-[10px] font-bold uppercase tracking-widest rounded-md opacity-0 group-hover/action:opacity-100 transition-opacity pointer-events-none z-50">
+                                    Edit Disabled
+                                </div>
+                            </div>
+                            <div className="relative group/action">
+                                <button disabled className="p-2 text-zinc-200 cursor-not-allowed">
+                                    <Trash2 size={16} />
+                                </button>
+                                <div className="absolute bottom-full right-0 mb-2 w-max px-2 py-1 bg-zinc-900 text-white text-[10px] font-bold uppercase tracking-widest rounded-md opacity-0 group-hover/action:opacity-100 transition-opacity pointer-events-none z-50">
+                                    Delete Disabled
+                                </div>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="relative group/action">
+                                <Link 
+                                href={`/admin/products/edit/${product.id}`}
+                                className="p-2 hover:bg-zinc-100 rounded-lg text-zinc-400 hover:text-black transition-colors block"
+                                >
+                                <Edit size={16} />
+                                </Link>
+                                <div className="absolute bottom-full right-0 mb-2 w-max px-2 py-1 bg-zinc-900 text-white text-[10px] font-bold uppercase tracking-widest rounded-md opacity-0 group-hover/action:opacity-100 transition-opacity pointer-events-none z-50">
+                                    Edit Product
+                                </div>
+                            </div>
+                            <div className="relative group/action">
+                                <button 
+                                onClick={() => handleDelete(product.id)}
+                                className="p-2 hover:bg-zinc-100 rounded-lg text-zinc-400 hover:text-red-500 transition-colors"
+                                >
+                                <Trash2 size={16} />
+                                </button>
+                                <div className="absolute bottom-full right-0 mb-2 w-max px-2 py-1 bg-red-600 text-white text-[10px] font-bold uppercase tracking-widest rounded-md opacity-0 group-hover/action:opacity-100 transition-opacity pointer-events-none z-50">
+                                    Delete Product
+                                </div>
+                            </div>
+                          </>
+                        )}
+                        <div className="relative group/action">
+                            <Link 
+                            href={`/product/${product.handle}`} 
+                            target="_blank"
+                            className="p-2 hover:bg-zinc-100 rounded-lg text-zinc-400 hover:text-black transition-colors block"
+                            >
+                            <ExternalLink size={16} />
+                            </Link>
+                            <div className="absolute bottom-full right-0 mb-2 w-max px-2 py-1 bg-zinc-900 text-white text-[10px] font-bold uppercase tracking-widest rounded-md opacity-0 group-hover/action:opacity-100 transition-opacity pointer-events-none z-50">
+                                View Live Store
+                            </div>
+                        </div>
                       </div>
                     </td>
                   </tr>

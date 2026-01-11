@@ -18,8 +18,10 @@ import {
   Trash2,
   PackageCheck,
   Ban,
-  X
+  X,
+  Lock
 } from "lucide-react";
+import { useSession } from "next-auth/react";
 
 export default function AdminOrders() {
   const router = useRouter();
@@ -28,6 +30,9 @@ export default function AdminOrders() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
   const [activeSegment, setActiveSegment] = useState("all");
+  
+  const { data: session } = useSession();
+  const isStaff = session?.user?.role === "STAFF";
   
   // Batch Mode State
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
@@ -69,7 +74,7 @@ export default function AdminOrders() {
         if (activeSegment === "draft") return o.status === "DRAFT";
         if (activeSegment === "paid") return o.status === "PAID";
         if (activeSegment === "pending") return o.status === "PENDING";
-        if (activeSegment === "fulfilled") return o.fulfillment === "FULFILLED";
+        if (activeSegment === "fulfilled") return o.fulfillment === "DELIVERED";
         if (activeSegment === "unfulfilled") return o.fulfillment === "UNFULFILLED" || !o.fulfillment;
         return true;
     })
@@ -122,6 +127,29 @@ export default function AdminOrders() {
     }
   };
 
+  const handleUpdateOrder = async (orderId: string, field: string, value: string) => {
+    const originalOrders = [...orders];
+    
+    // Optimistic update
+    setOrders(orders.map(o => o.id === orderId ? { ...o, [field]: value } : o));
+
+    try {
+        const response = await fetch(`/api/orders/${orderId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ [field]: value })
+        });
+
+        if (!response.ok) {
+            throw new Error("Failed");
+        }
+        toast.success("Order updated");
+    } catch (error) {
+        toast.error("Failed to update status");
+        setOrders(originalOrders); // Revert
+    }
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500 text-black">
       <div className="flex justify-between items-end">
@@ -130,18 +158,49 @@ export default function AdminOrders() {
           <p className="text-zinc-500 text-[13px] mt-1">Track and manage customer orders and fulfillment.</p>
         </div>
         <div className="flex gap-3">
-           <button 
-            onClick={() => setActiveSegment("draft")}
-            className={`bg-white border border-zinc-200 text-black px-6 py-3 rounded-lg text-[13px] font-medium hover:bg-zinc-50 transition-all ${activeSegment === 'draft' ? 'ring-2 ring-black border-black' : ''}`}
-          >
-            Draft Orders
-          </button>
-          <Link 
-            href="/admin/orders/create"
-            className="bg-black text-white px-6 py-3 rounded-lg text-[13px] font-medium hover:bg-zinc-800 transition-all flex items-center justify-center"
-          >
-            Create Order
-          </Link>
+          {isStaff ? (
+            <div className="relative group">
+              <button 
+                disabled
+                className="bg-zinc-100 text-zinc-400 px-6 py-3 rounded-lg text-[13px] font-medium flex items-center gap-2 cursor-not-allowed border border-zinc-200"
+              >
+                <Lock size={16} />
+                Drafts
+              </button>
+              <div className="absolute bottom-full right-0 mb-2 w-48 px-3 py-2 bg-zinc-900 text-white text-[10px] font-bold uppercase tracking-widest rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-center shadow-xl ring-1 ring-white/10">
+                Staff cannot create manual drafts
+              </div>
+            </div>
+          ) : (
+            <button 
+              onClick={() => setActiveSegment("draft")}
+              className={`bg-white border border-zinc-200 text-black px-6 py-3 rounded-lg text-[13px] font-medium hover:bg-zinc-50 transition-all ${activeSegment === 'draft' ? 'ring-2 ring-black border-black' : ''}`}
+            >
+              Draft Orders
+            </button>
+          )}
+
+          {isStaff ? (
+            <div className="relative group">
+              <button 
+                disabled
+                className="bg-zinc-100 text-zinc-400 px-6 py-3 rounded-lg text-[13px] font-medium flex items-center gap-2 cursor-not-allowed border border-zinc-200"
+              >
+                <Lock size={16} />
+                Create Order
+              </button>
+              <div className="absolute bottom-full right-0 mb-2 w-48 px-3 py-2 bg-zinc-900 text-white text-[10px] font-bold uppercase tracking-widest rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-center shadow-xl ring-1 ring-white/10">
+                Permission required for manual entry
+              </div>
+            </div>
+          ) : (
+            <Link 
+              href="/admin/orders/create"
+              className="bg-black text-white px-6 py-3 rounded-lg text-[13px] font-medium hover:bg-zinc-800 transition-all flex items-center justify-center"
+            >
+              Create Order
+            </Link>
+          )}
         </div>
       </div>
 
@@ -299,13 +358,23 @@ export default function AdminOrders() {
                     </td>
                     <td className="px-6 py-4">
                         <div className="flex justify-center">
-                            <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold tracking-widest uppercase ${
-                                order.fulfillment === 'FULFILLED' 
-                                ? 'bg-black text-white' 
-                                : 'bg-zinc-100 text-zinc-400'
-                            }`}>
-                                {order.fulfillment || 'Unfulfilled'}
-                            </span>
+                            <select 
+                                value={order.fulfillment || 'UNFULFILLED'}
+                                onChange={(e) => handleUpdateOrder(order.id, 'fulfillment', e.target.value)}
+                                disabled={isProcessingBatch}
+                                className={`text-[10px] px-2 py-1 rounded-full font-bold tracking-widest uppercase cursor-pointer border-none focus:ring-0 text-center appearance-none ${
+                                    order.fulfillment === 'DELIVERED' ? 'bg-black text-white' :
+                                    order.fulfillment === 'SHIPPED' ? 'bg-blue-600 text-white' :
+                                    order.fulfillment === 'PROCESSING' ? 'bg-orange-100 text-orange-600' :
+                                    'bg-zinc-100 text-zinc-400'
+                                }`}
+                                style={{ textAlignLast: 'center' }}
+                            >
+                                <option value="UNFULFILLED">Unfulfilled</option>
+                                <option value="PROCESSING">Processing</option>
+                                <option value="SHIPPED">Shipped</option>
+                                <option value="DELIVERED">Delivered</option>
+                            </select>
                         </div>
                     </td>
                     <td className="px-6 py-4 text-[13px] font-bold text-black">${order.total.toLocaleString()}</td>

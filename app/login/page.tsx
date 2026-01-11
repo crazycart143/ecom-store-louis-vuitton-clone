@@ -29,19 +29,15 @@ export default function LoginPage() {
       setError(result.error);
       setLoading(false);
     } else {
-      // Check if user is admin - don't allow admin login here
       const res = await fetch("/api/auth/session");
       const session = await res.json();
       
-      if (session?.user?.role === "ADMIN") {
-        // Force signout
-        await fetch("/api/auth/signout", { method: "POST" });
-        setError("Invalid credentials");
-        setLoading(false);
-        return;
+      const adminRoles = ["OWNER", "ADMIN", "MANAGER", "STAFF"];
+      if (adminRoles.includes(session?.user?.role)) {
+        router.push("/admin");
+      } else {
+        router.push("/");
       }
-
-      router.push("/");
       router.refresh();
     }
   };

@@ -189,6 +189,7 @@ async function seed() {
                 price: p.price,
                 description: p.description,
                 sku: p.sku,
+                stock: p.stock || 20, // Default to 20 if not specified
                 categoryId: getCatId(p.collection), // Link to collection/category
                 createdAt: new Date(),
                 updatedAt: new Date()

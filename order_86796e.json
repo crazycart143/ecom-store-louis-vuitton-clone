@@ -1,0 +1,22 @@
+{
+  "_id": "6963a27259e062454386796e",
+  "userId": "6961349d48c5648176ab53be",
+  "email": "admin@louisvuitton.com",
+  "total": 5600,
+  "subtotal": 5600,
+  "discountCode": null,
+  "discountAmount": 0,
+  "status": "PAID",
+  "shippingAddress": {
+    "name": "Louis Vuitton Admin",
+    "line1": "San Antonio Village",
+    "line2": "",
+    "city": "Davao City",
+    "state": "Davao del Sur",
+    "postal_code": "8000",
+    "country": "PH"
+  },
+  "fulfillment": "UNFULFILLED",
+  "createdAt": "2026-01-11T13:15:30.622Z",
+  "updatedAt": "2026-01-11T13:18:00.676Z"
+}

@@ -20,7 +20,7 @@ export default function NewProductPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
-  const [categories, setCategories] = useState([]);
+  const [categories, setCategories] = useState<any[]>([]);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -28,6 +28,9 @@ export default function NewProductPage() {
     price: "",
     description: "",
     categoryId: "",
+    scheduledAt: "",
+    requiredTags: [] as string[],
+    stock: "20",
   });
 
   const [images, setImages] = useState<string[]>([]);
@@ -52,6 +55,8 @@ export default function NewProductPage() {
           ...formData,
           images: images.filter(img => img.trim() !== ""),
           details: details.filter(d => d.trim() !== ""),
+          scheduledAt: formData.scheduledAt || null,
+          requiredTags: formData.requiredTags
         }),
       });
 
@@ -275,7 +280,7 @@ export default function NewProductPage() {
           <section className="bg-white p-8 rounded-2xl border border-zinc-100 shadow-sm space-y-6">
             <h2 className="text-[14px] uppercase tracking-widest font-bold border-b border-zinc-50 pb-4">Product Details & Specs</h2>
             
-            <div className="space-y-4 font-sans">
+            <div className="space-y-4 font-bold">
               {details.map((content, index) => (
                 <div key={index} className="flex gap-3">
                   <div className="flex-1">
@@ -317,11 +322,11 @@ export default function NewProductPage() {
           
           {/* Pricing */}
           <section className="bg-white p-8 rounded-2xl border border-zinc-100 shadow-sm space-y-6 font-sans">
-            <h2 className="text-[14px] uppercase tracking-widest font-bold border-b border-zinc-50 pb-4">Organization & Price</h2>
+            <h2 className="text-[14px] uppercase tracking-widest font-black border-b border-zinc-50 pb-4">Organization & Price</h2>
             
             <div className="space-y-6">
               <div>
-                <label className="block text-[11px] uppercase tracking-widest text-zinc-400 mb-2 font-bold font-serif">Luxury Price (USD)</label>
+                <label className="block text-[11px] uppercase tracking-widest text-zinc-400 mb-2 font-black">Luxury Price (USD)</label>
                 <div className="relative">
                   <span className="absolute left-4 top-3.5 text-zinc-400">$</span>
                   <input 
@@ -336,7 +341,20 @@ export default function NewProductPage() {
               </div>
 
               <div>
-                <label className="block text-[11px] uppercase tracking-widest text-zinc-400 mb-2 font-bold font-serif">Collection Category</label>
+                <label className="block text-[11px] uppercase tracking-widest text-zinc-400 mb-2 font-black">Stock Quantity</label>
+                <input 
+                  type="number" 
+                  min="0"
+                  value={formData.stock}
+                  onChange={(e) => setFormData({...formData, stock: e.target.value})}
+                  className="w-full bg-zinc-50 border border-zinc-100 px-4 py-3 rounded-xl text-[16px] font-bold focus:outline-none focus:border-black transition-all"
+                  placeholder="20"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] uppercase tracking-widest text-zinc-400 mb-2 font-black">Collection Category</label>
                 <select 
                   value={formData.categoryId}
                   onChange={(e) => setFormData({...formData, categoryId: e.target.value})}
@@ -353,21 +371,64 @@ export default function NewProductPage() {
           </section>
 
           {/* Status & Actions */}
-          <section className="bg-zinc-900 p-8 rounded-2xl shadow-xl space-y-6 text-white font-serif">
+          <section className="bg-zinc-900 p-8 rounded-2xl shadow-xl space-y-6 text-white font-black group">
             <div>
-              <h3 className="text-lg font-bold mb-2">Publishing</h3>
-              <p className="text-zinc-400 text-[12px] font-sans leading-relaxed tracking-tight font-light">
-                This product will be immediately visible on the storefront collections once published.
+              <h3 className="text-lg font-bold mb-2 uppercase tracking-widest text-[14px]">Publishing & Visibility</h3>
+              <p className="text-zinc-400 text-[12px] leading-relaxed tracking-tight font-light border-b border-zinc-800 pb-6 mb-6">
+                Define when and to whom this signature piece will be unveiled.
               </p>
+              
+              <div className="space-y-6">
+                <div>
+                    <label className="block text-[10px] uppercase tracking-[0.2em] text-zinc-500 mb-2 font-black">Scheduled Launch</label>
+                    <input 
+                        type="datetime-local" 
+                        value={formData.scheduledAt}
+                        onChange={(e) => setFormData({...formData, scheduledAt: e.target.value})}
+                        className="w-full bg-zinc-800 border border-zinc-700 px-4 py-3 rounded-xl text-[12px] focus:outline-none focus:border-white transition-all text-white font-sans"
+                    />
+                    <p className="text-[10px] text-zinc-600 mt-2 italic">Leave empty for immediate publication.</p>
+                </div>
+
+                <div>
+                    <label className="block text-[10px] uppercase tracking-[0.2em] text-zinc-500 mb-3 font-black">VIP Access Gating</label>
+                    <div className="flex flex-wrap gap-2 mb-3 min-h-[40px] p-3 bg-zinc-800/50 rounded-xl border border-zinc-700">
+                        {formData.requiredTags.length === 0 && <span className="text-[10px] text-zinc-600 uppercase tracking-widest font-bold">Public Access</span>}
+                        {formData.requiredTags.map(tag => (
+                            <span key={tag} className="flex items-center gap-2 px-3 py-1.5 bg-white text-black text-[10px] font-black uppercase tracking-widest rounded-lg">
+                                {tag}
+                                <button type="button" onClick={() => setFormData({...formData, requiredTags: formData.requiredTags.filter(t => t !== tag)})}>
+                                    <X size={12} strokeWidth={3} />
+                                </button>
+                            </span>
+                        ))}
+                    </div>
+                    <select 
+                        onChange={(e) => {
+                            if (e.target.value && !formData.requiredTags.includes(e.target.value)) {
+                                setFormData({...formData, requiredTags: [...formData.requiredTags, e.target.value]});
+                            }
+                            e.target.value = "";
+                        }}
+                        className="w-full bg-zinc-800 border border-zinc-700 px-4 py-3 rounded-xl text-[11px] font-bold uppercase tracking-widest focus:outline-none focus:border-white transition-all text-white cursor-pointer"
+                    >
+                        <option value="">Restrict access to...</option>
+                        <option value="VIP">VIP Clientele</option>
+                        <option value="VVIP">VVIP Exclusive</option>
+                        <option value="EARLY_ACCESS">Early Access</option>
+                        <option value="INNER_CIRCLE">Inner Circle</option>
+                    </select>
+                </div>
+              </div>
             </div>
             
             <div className="pt-4 space-y-3">
               <button 
                 type="submit"
                 disabled={loading}
-                className="w-full bg-white text-black py-4 rounded-xl text-[12px] uppercase tracking-widest font-bold hover:bg-zinc-200 transition-all flex items-center justify-center gap-2"
+                className="w-full bg-white text-black py-4 rounded-xl text-[12px] uppercase tracking-widest font-bold hover:bg-zinc-200 transition-all flex items-center justify-center gap-2 group-active:scale-[0.98]"
               >
-                {loading ? <Loader2 className="animate-spin" size={18} /> : <><Check size={18} /> Publish to Store</>}
+                {loading ? <Loader2 className="animate-spin" size={18} /> : <><Check size={18} /> Finalize & Publish</>}
               </button>
               <button 
                 type="button"

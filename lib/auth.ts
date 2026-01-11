@@ -24,6 +24,10 @@ export const authOptions: NextAuthOptions = {
                     throw new Error("User not found");
                 }
 
+                if (user.status === "inactive") {
+                    throw new Error("Account is suspended. Please contact the Owner.");
+                }
+
                 const isPasswordCorrect = await bcrypt.compare(
                     credentials.password,
                     user.password as string
@@ -38,6 +42,7 @@ export const authOptions: NextAuthOptions = {
                     email: user.email,
                     name: user.name,
                     role: user.role,
+                    tags: (user as any).tags || [],
                 };
             },
         }),
@@ -46,12 +51,13 @@ export const authOptions: NextAuthOptions = {
         async jwt({ token, user, trigger, session }) {
             if (user) {
                 token.id = user.id;
-                token.role = user.role;
+                token.role = (user as any).role;
+                token.tags = (user as any).tags;
             }
 
             // Handle Impersonation Trigger
             if (trigger === "update" && session?.targetUserId) {
-                const allowedRoles = ["ADMIN", "MANAGER", "STAFF"];
+                const allowedRoles = ["OWNER", "ADMIN", "MANAGER", "STAFF"];
                 if (allowedRoles.includes(token.role as string) || token.originalAdminId) {
                     const client = await clientPromise;
                     const db = client.db();
@@ -122,6 +128,7 @@ export const authOptions: NextAuthOptions = {
             if (token && session.user) {
                 session.user.id = (token.id as string) || "";
                 session.user.role = (token.role as string) || "USER";
+                (session.user as any).tags = (token.tags as string[]) || [];
                 session.isImpersonating = token.isImpersonating as boolean;
                 session.originalAdminId = token.originalAdminId as string;
                 session.originalAdminName = token.originalAdminName as string;

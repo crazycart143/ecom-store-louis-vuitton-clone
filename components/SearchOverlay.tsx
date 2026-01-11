@@ -4,6 +4,7 @@ import { X, Heart, Search as SearchIcon, Loader2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useWishlist } from "@/context/WishlistContext";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 interface SearchOverlayProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ interface SearchOverlayProps {
 }
 
 export function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
+  useScrollLock(isOpen);
   const [query, setQuery] = useState("");
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);

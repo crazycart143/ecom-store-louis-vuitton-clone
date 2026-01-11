@@ -69,7 +69,7 @@ export function ProductGrid() {
                   transition={{ delay: index * 0.1, duration: 0.8 }}
                   className="group"
                 >
-                  <Link href={`/product/${product.id}`} className="block">
+                  <Link href={`/product/${product.handle || product.id}`} className="block">
                     <div className="relative aspect-4/5 bg-zinc-50 overflow-hidden mb-6 flex items-center justify-center p-8">
                       <div className="w-full h-full relative transition-transform duration-1000 group-hover:scale-105">
                          <Image 

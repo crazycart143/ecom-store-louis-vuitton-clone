@@ -73,7 +73,7 @@ export async function DELETE(req: Request) {
 
     await db.collection("User").updateOne(
         { _id: new ObjectId(session.user.id) },
-        { $pull: { addresses: { id: addressId } } }
+        { $pull: { addresses: { id: addressId } } as any }
     );
 
     return NextResponse.json({ success: true });

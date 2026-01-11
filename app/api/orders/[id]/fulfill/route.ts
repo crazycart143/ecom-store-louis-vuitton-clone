@@ -6,16 +6,15 @@ import { ObjectId } from "mongodb";
 
 export async function PATCH(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const session = await getServerSession(authOptions);
+        const { id: orderId } = await params;
 
-        if (!session || !["ADMIN", "MANAGER", "STAFF"].includes(session.user.role as string)) {
+        if (!session || !["OWNER", "ADMIN", "MANAGER", "STAFF"].includes(session.user.role as string)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
-
-        const orderId = params.id;
 
         const client = await clientPromise;
         const db = client.db();
@@ -25,7 +24,7 @@ export async function PATCH(
             { _id: new ObjectId(orderId) },
             {
                 $set: {
-                    fulfillment: "FULFILLED",
+                    fulfillment: "DELIVERED",
                     fulfilledAt: new Date(),
                 },
             }

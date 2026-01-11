@@ -8,7 +8,26 @@ export async function GET() {
         const client = await clientPromise;
         const db = client.db();
 
-        const categories = await db.collection("Category").find({}).toArray();
+        const categories = await db.collection("Category").aggregate([
+            {
+                $lookup: {
+                    from: "Product",
+                    localField: "_id",
+                    foreignField: "categoryId",
+                    as: "products"
+                }
+            },
+            {
+                $project: {
+                    _id: 1,
+                    name: 1,
+                    slug: 1,
+                    description: 1,
+                    createdAt: 1,
+                    productsCount: { $size: "$products" }
+                }
+            }
+        ]).toArray();
 
         const formattedCategories = categories.map(c => ({
             ...c,
@@ -24,7 +43,7 @@ export async function GET() {
 export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
 
-    if (!session || (session.user as any).role !== "ADMIN") {
+    if (!session || !["OWNER", "ADMIN", "MANAGER"].includes(session.user.role as string)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

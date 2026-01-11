@@ -19,7 +19,7 @@ export default function AdminCustomers() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, update: updateSession } = useSession();
-  const [customers, setCustomers] = useState([]);
+  const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSegment, setActiveSegment] = useState(searchParams.get("segment") || "all");
@@ -91,6 +91,7 @@ export default function AdminCustomers() {
 
   const filteredCustomers = customers
     .filter((c: any) => 
+      (!c.role || c.role === "USER") &&
       (c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.email.toLowerCase().includes(searchQuery.toLowerCase())) &&
       (
@@ -105,7 +106,7 @@ export default function AdminCustomers() {
     <div className="space-y-8 animate-in fade-in duration-500 text-black">
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900">Customers & Staff</h1>
+          <h1 className="text-2xl font-bold text-zinc-900">Customers</h1>
           <p className="text-zinc-500 text-[13px] mt-1">Manage users, permissions, and impersonate for support.</p>
         </div>
         <button className="bg-white border border-zinc-200 px-6 py-3 rounded-xl text-[13px] font-bold uppercase tracking-widest hover:bg-zinc-50 transition-all shadow-sm">
@@ -248,9 +249,9 @@ export default function AdminCustomers() {
                             <div className="absolute inset-0 bg-gradient-to-r from-zinc-800 to-transparent opacity-0 group-hover/btn:opacity-20 transition-opacity" />
                         </button>
                         <button 
-                            onClick={() => router.push(`/admin/orders?q=${encodeURIComponent(customer.email)}`)}
+                            onClick={() => router.push(`/admin/customers/${customer.id}`)}
                             className="p-2.5 hover:bg-zinc-100 rounded-xl text-zinc-300 hover:text-black transition-all ring-1 ring-zinc-200/50"
-                            title="View Orders"
+                            title="View Customer Details"
                         >
                             <ChevronRight size={18} />
                         </button>

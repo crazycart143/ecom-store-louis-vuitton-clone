@@ -19,7 +19,8 @@ export async function GET(req: Request) {
         const db = client.db();
 
         let match: any = {};
-        if (role !== "ADMIN") {
+        const adminRoles = ["OWNER", "ADMIN", "MANAGER", "STAFF"];
+        if (!adminRoles.includes(role as string)) {
             console.log(`[Orders API] Fetching for user: ${userId}, email: ${session.user.email}`);
             match = {
                 $or: [
@@ -28,7 +29,7 @@ export async function GET(req: Request) {
                 ]
             };
         } else {
-            console.log(`[Orders API] Fetching ALL orders (ADMIN)`);
+            console.log(`[Orders API] Fetching ALL orders (${role})`);
         }
 
         const orders = await db.collection("Order").aggregate([
@@ -61,7 +62,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
 
-    if (!session || !["ADMIN", "MANAGER", "STAFF"].includes(session.user.role as string)) {
+    if (!session || !["OWNER", "ADMIN", "MANAGER", "STAFF"].includes(session.user.role as string)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -80,6 +81,9 @@ export async function POST(req: Request) {
         const orderResult = await db.collection("Order").insertOne({
             email,
             total: parseFloat(total),
+            subtotal: body.subtotal ? parseFloat(body.subtotal) : parseFloat(total),
+            discountCode: body.discountCode || null,
+            discountAmount: body.discountAmount ? parseFloat(body.discountAmount) : 0,
             status: status || "PENDING",
             fulfillment: fulfillment || "UNFULFILLED",
             createdAt: new Date(),
@@ -101,6 +105,16 @@ export async function POST(req: Request) {
                     image: item.image || (item.images && item.images[0]?.url) || null
                 }))
             );
+
+            // Decrement stock for manual orders
+            for (const item of items) {
+                if (item.productId) {
+                    await db.collection("Product").updateOne(
+                        { _id: new ObjectId(item.productId) },
+                        { $inc: { stock: -parseInt(item.quantity) } }
+                    );
+                }
+            }
         }
 
         // Log the action

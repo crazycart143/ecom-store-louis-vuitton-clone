@@ -36,6 +36,7 @@ export async function POST(req: Request) {
         const amountTotal = isSession ? session?.amount_total : paymentIntent?.amount;
 
         console.log(`[Webhook] Processing ${event.type}: ${isSession ? session?.id : paymentIntent?.id} for user ${userId}`);
+        console.log(`[Webhook] Metadata:`, JSON.stringify(metadata, null, 2));
 
         const client = await clientPromise;
         const db = client.db();
@@ -78,10 +79,23 @@ export async function POST(req: Request) {
                 addressString = `${sd.address}\n${sd.city}, ${sd.state} ${sd.zipCode}\n${sd.country}`;
             }
 
+            if (metadata?.discountCode) {
+                await db.collection("Discount").updateOne(
+                    { code: metadata.discountCode },
+                    { $inc: { usedCount: 1 } }
+                );
+            }
+
+            const paidAmount = (amountTotal || 0) / 100;
+            const originalAmount = metadata?.originalAmount ? parseFloat(metadata.originalAmount) : paidAmount;
+
             const orderResult = await db.collection("Order").insertOne({
-                userId: userId ? new ObjectId(userId) : null,
+                userId: (userId && ObjectId.isValid(userId)) ? new ObjectId(userId) : null,
                 email: customerEmail || "",
-                total: (amountTotal || 0) / 100,
+                total: paidAmount,
+                subtotal: originalAmount, // Store the original pre-discount subtotal
+                discountCode: metadata?.discountCode || null,
+                discountAmount: Math.max(0, originalAmount - paidAmount),
                 status: "PAID",
                 shippingAddress: dbAddress,
                 fulfillment: "UNFULFILLED",
@@ -99,10 +113,21 @@ export async function POST(req: Request) {
                         price: item.price,
                         quantity: item.quantity,
                         image: item.image,
-                        productId: item.productId ? new ObjectId(item.productId) : null,
+                        productId: (item.productId && ObjectId.isValid(item.productId)) ? new ObjectId(item.productId) : null,
                     }))
                 );
                 console.log(`[Webhook] Inserted ${orderItems.length} items`);
+
+                // Decrement stock for each product
+                for (const item of orderItems) {
+                    if (item.productId && ObjectId.isValid(item.productId)) {
+                        await db.collection("Product").updateOne(
+                            { _id: new ObjectId(item.productId) },
+                            { $inc: { stock: -item.quantity } }
+                        );
+                        console.log(`[Webhook] Decremented stock for ${item.productId} by ${item.quantity}`);
+                    }
+                }
             }
 
             // Send Confirmation Email
@@ -120,7 +145,9 @@ export async function POST(req: Request) {
                 (amountTotal || 0) / 100,
                 orderItems,
                 addressString,
-                orderDate
+                orderDate,
+                originalAmount,
+                Math.max(0, originalAmount - paidAmount)
             );
 
             // Create Admin Notifications

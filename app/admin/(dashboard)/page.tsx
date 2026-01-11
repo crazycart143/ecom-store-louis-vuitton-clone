@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { 
   TrendingUp, 
   ShoppingBag, 
@@ -31,6 +32,7 @@ export default function AdminDashboard() {
   const [graphData, setGraphData] = useState<any[]>([]);
 
   const [topCollections, setTopCollections] = useState<any[]>([]);
+  const [lowStockProducts, setLowStockProducts] = useState<any[]>([]);
 
   useEffect(() => {
     // Fetch dashboard data
@@ -109,6 +111,9 @@ export default function AdminDashboard() {
             .sort((a, b) => b.count - a.count)
             .slice(0, 5);
 
+        // Low Stock Products (stock <= 5)
+        const lowStock = products.filter((p: any) => typeof p.stock === 'number' && p.stock <= 5 && p.stock >= 0);
+
         // Trends
         const salesTrend = calculateTrend(currentSales, previousSales);
         const ordersTrend = calculateTrend(currentOrders.length, previousOrders.length);
@@ -135,6 +140,7 @@ export default function AdminDashboard() {
         setTopCollections(collectionsArray);
         setRecentOrders(orders.slice(0, 5));
         setGraphData(monthlyData);
+        setLowStockProducts(lowStock);
       });
   }, []);
 
@@ -323,6 +329,54 @@ export default function AdminDashboard() {
               ) : (
                 <div className="text-center py-8 text-zinc-400">
                     <p className="text-[12px]">No recent activity detected.</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-12">
+            <h3 className="font-bold mb-6">Low Stock Alerts</h3>
+            <div className="space-y-4">
+              {lowStockProducts.length > 0 ? (
+                lowStockProducts.slice(0, 5).map((product: any) => (
+                    <div key={product.id} className="space-y-2 p-3 bg-zinc-50 rounded-lg">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <Link 
+                            href={`/admin/products/edit/${product.id}`}
+                            className="text-[12px] font-medium text-zinc-800 hover:underline line-clamp-1"
+                          >
+                            {product.name}
+                          </Link>
+                          <p className="text-[10px] text-zinc-400 uppercase mt-1">
+                            Stock: <span className={`font-bold ${product.stock === 0 ? 'text-red-600' : product.stock <= 2 ? 'text-red-500' : 'text-orange-500'}`}>
+                              {product.stock}
+                            </span>
+                          </p>
+                        </div>
+                        <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                          product.stock === 0 ? 'bg-red-100 text-red-600' : 
+                          product.stock <= 2 ? 'bg-red-50 text-red-500' : 
+                          'bg-orange-50 text-orange-500'
+                        }`}>
+                          {product.stock === 0 ? 'Out' : 'Low'}
+                        </span>
+                      </div>
+                      <div className="w-full bg-zinc-200 h-1.5 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full transition-all duration-500 ${
+                            product.stock === 0 ? 'bg-red-600' : 
+                            product.stock <= 2 ? 'bg-red-500' : 
+                            'bg-orange-500'
+                          }`}
+                          style={{ width: `${Math.min((product.stock / 10) * 100, 100)}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-zinc-400">
+                    <p className="text-[12px]">All products are well stocked!</p>
                 </div>
               )}
             </div>

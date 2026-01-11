@@ -39,7 +39,23 @@ export async function POST(req: Request) {
             };
         });
 
-        // 1. Prepare Shipping Info
+        // 0. Validate Stock
+        const client = await clientPromise;
+        const db = client.db();
+
+        for (const item of items) {
+            const product = await db.collection("Product").findOne({ _id: new ObjectId(item.id) });
+            if (!product) {
+                return NextResponse.json({ error: `Product ${item.name} no longer exists.` }, { status: 400 });
+            }
+            // If stock field exists, check it. Treat undefined/null as infinite/untracked? Or 0? 
+            // Let's assume enabled inventory tracking if field exists. If not exist, assume in stock (legacy products).
+            if (typeof product.stock === 'number') {
+                if (product.stock < item.quantity) {
+                    return NextResponse.json({ error: `Sorry, ${item.name} is out of stock (Only ${product.stock} left).` }, { status: 400 });
+                }
+            }
+        }
         // Helper to normalize country to ISO-2
         const normalizeCountry = (c: string) => {
             if (!c) return "US";
@@ -65,8 +81,6 @@ export async function POST(req: Request) {
             };
         }
 
-        const client = await clientPromise;
-        const db = client.db();
         let customerId = null;
         let customerEmail = email;
 

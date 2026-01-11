@@ -1,0 +1,21 @@
+{
+  "_id": "6963759659e0624543867953",
+  "userId": "6961299f48c5648176ab53bd",
+  "email": "keanujohnlariosa@gmail.com",
+  "total": 2700,
+  "subtotal": 2800,
+  "discountCode": "LETSGO2026",
+  "discountAmount": 100,
+  "status": "PAID",
+  "shippingAddress": {
+    "name": "Keanu Lariosa",
+    "line1": "San Antonio Street",
+    "line2": "",
+    "city": "Davao City",
+    "state": "Davao del Sur",
+    "postal_code": "8000",
+    "country": "Philippines"
+  },
+  "fulfillment": "UNFULFILLED",
+  "createdAt": "2026-01-11T10:04:06.528Z"
+}

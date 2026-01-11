@@ -13,6 +13,7 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://louis-vuitton-clone.vercel.app"),
   title: {
     default: "Louis Vuitton | Official Website",
     template: "%s | Louis Vuitton"
@@ -44,6 +45,7 @@ export const metadata: Metadata = {
   },
 };
 
+import { Suspense } from "react";
 import { Providers } from "@/components/Providers";
 
 export default function RootLayout({
@@ -56,9 +58,11 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${playfair.variable} font-sans antialiased bg-white text-black`}
       >
-        <Providers>
-          {children}
-        </Providers>
+        <Suspense fallback={null}>
+          <Providers>
+            {children}
+          </Providers>
+        </Suspense>
       </body>
     </html>
   );

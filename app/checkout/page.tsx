@@ -8,7 +8,7 @@ import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronRight, Truck, ShieldCheck, RefreshCw, Loader2, Plus, ArrowRight } from "lucide-react";
+import { ChevronRight, Truck, ShieldCheck, RefreshCw, Loader2, Plus, ArrowRight, X } from "lucide-react";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements } from "@stripe/react-stripe-js";
 import CheckoutForm from "@/components/CheckoutForm";
@@ -32,6 +32,44 @@ export default function CheckoutPage() {
     country: "United States",
     phone: "",
   });
+
+  const [discountCode, setDiscountCode] = useState("");
+  const [discountLoading, setDiscountLoading] = useState(false);
+  const [appliedDiscount, setAppliedDiscount] = useState<{ code: string; type: 'fixed' | 'percentage'; value: number } | null>(null);
+  const [discountError, setDiscountError] = useState("");
+
+  const discountAmount = appliedDiscount 
+    ? (appliedDiscount.type === 'percentage' ? total * (appliedDiscount.value / 100) : appliedDiscount.value) 
+    : 0;
+  
+  const finalTotal = total - discountAmount;
+
+  const handleApplyDiscount = async () => {
+    if (!discountCode.trim()) return;
+    setDiscountLoading(true);
+    setDiscountError("");
+    try {
+        const res = await fetch("/api/checkout/validate-discount", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ code: discountCode, cartTotal: total })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            setAppliedDiscount(data.discount);
+            setDiscountError("");
+            // toast.success("Code applied");
+        } else {
+            console.error(data.error);
+            setDiscountError(data.error || "Invalid promotion code");
+        }
+    } catch (error) {
+        console.error("Failed to apply");
+        setDiscountError("Failed to apply promotion code");
+    } finally {
+        setDiscountLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (session?.user) {
@@ -90,6 +128,7 @@ export default function CheckoutPage() {
           email: session?.user?.email || formData.email,
           userId: (session?.user as any)?.id || "",
           shippingDetails: formData,
+          discountCode: appliedDiscount ? appliedDiscount.code : null
         }),
       });
 
@@ -369,7 +408,7 @@ export default function CheckoutPage() {
                           }}
                         >
                           <CheckoutForm 
-                            total={total} 
+                            total={finalTotal} 
                             items={cart} 
                             email={session?.user?.email || ""}
                             shippingDetails={formData}
@@ -410,6 +449,51 @@ export default function CheckoutPage() {
                   ))}
                 </div>
 
+                {/* Discount Code Input */}
+                <div className="pt-6 border-t border-zinc-50">
+                   {appliedDiscount ? (
+                     <div className="flex justify-between items-center bg-zinc-50 px-4 py-3 rounded-xl border border-zinc-100">
+                        <div className="flex items-center gap-2">
+                             <span className="w-6 h-6 rounded-full bg-black text-white flex items-center justify-center text-[10px] font-bold">
+                                 %
+                             </span>
+                             <div>
+                                 <p className="text-[11px] font-bold uppercase tracking-widest">{appliedDiscount.code}</p>
+                                 <p className="text-[9px] text-blue-600 uppercase tracking-widest">
+                                     {appliedDiscount.type === 'percentage' ? `-${appliedDiscount.value}%` : `-$${appliedDiscount.value}`} Applied
+                                 </p>
+                             </div>
+                        </div>
+                        <button onClick={() => { setAppliedDiscount(null); setDiscountCode(""); }} className="text-zinc-400 hover:text-black">
+                             <X size={14} />
+                        </button>
+                     </div>
+                   ) : (
+                     <div className="flex gap-2">
+                        <input 
+                            type="text" 
+                            value={discountCode}
+                            onChange={(e) => setDiscountCode(e.target.value)}
+                            placeholder="Promotion Code"
+                            className="flex-1 bg-white border border-zinc-200 px-4 py-3 rounded-xl text-[11px] font-medium uppercase tracking-widest focus:border-black outline-none transition-all placeholder:text-zinc-300"
+                        />
+                        <button 
+                            disabled={!discountCode || discountLoading}
+                            onClick={handleApplyDiscount}
+                            className="bg-black text-white px-5 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-zinc-800 disabled:bg-zinc-100 disabled:text-zinc-400 transition-all"
+                        >
+                            {discountLoading ? <Loader2 size={14} className="animate-spin" /> : "Apply"}
+                        </button>
+                     </div>
+                   )}
+                   {discountError && (
+                     <p className="text-[10px] text-red-500 font-medium mt-2 uppercase tracking-wide flex items-center gap-1">
+                        <span className="w-1 h-1 bg-red-500 rounded-full inline-block" />
+                        {discountError}
+                     </p>
+                   )}
+                </div>
+
                 <div className="space-y-4 pt-4 border-t border-zinc-50">
                   <div className="flex justify-between text-zinc-500">
                     <span className="text-[10px] uppercase tracking-[0.2em]">Subtotal</span>
@@ -421,7 +505,10 @@ export default function CheckoutPage() {
                   </div>
                   <div className="flex justify-between pt-4 text-black border-t border-zinc-50">
                     <span className="text-xs uppercase tracking-[0.2em] font-bold">Total</span>
-                    <span className="text-xl font-medium tracking-tighter">${total.toLocaleString()}</span>
+                    <div className="text-right">
+                       {appliedDiscount && <span className="block text-[11px] text-zinc-400 line-through mr-1">${total.toLocaleString()}</span>}
+                       <span className="text-xl font-medium tracking-tighter">${finalTotal.toLocaleString()}</span>
+                    </div>
                   </div>
                 </div>
 

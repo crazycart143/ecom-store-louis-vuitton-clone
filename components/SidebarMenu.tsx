@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 interface SidebarMenuProps {
   isOpen: boolean;
@@ -11,7 +12,9 @@ interface SidebarMenuProps {
 }
 
 export function SidebarMenu({ isOpen, onClose }: SidebarMenuProps) {
+  useScrollLock(isOpen);
   const [contrastEnabled, setContrastEnabled] = useState(false);
+
 
   const mainLinks = [
     "Monogram Anniversary",
@@ -37,16 +40,16 @@ export function SidebarMenu({ isOpen, onClose }: SidebarMenuProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/40 z-[95] backdrop-blur-sm"
+            className="fixed inset-0 bg-black/40 z-95 backdrop-blur-sm"
           />
           <motion.div
             initial={{ x: "-100%" }}
             animate={{ x: 0 }}
             exit={{ x: "-100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed left-0 top-0 h-full w-full max-w-[500px] bg-white z-[100] shadow-2xl flex flex-col"
+            className="fixed left-0 top-0 h-full w-full max-w-[500px] bg-white z-100 shadow-2xl flex flex-col"
           >
-            <div className="p-8 flex-shrink-0">
+            <div className="p-8 shrink-0">
               <button 
                 onClick={onClose}
                 className="flex items-center gap-2 text-zinc-600 hover:text-black transition-colors"

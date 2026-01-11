@@ -29,7 +29,7 @@ export default function AccountPage() {
   const { clearWishlist } = useWishlist();
 
   // Orders State
-  const [orders, setOrders] = useState([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const [expandedOrders, setExpandedOrders] = useState<string[]>([]);
 
   // Address State
@@ -249,7 +249,16 @@ export default function AccountPage() {
                             </div>
 
                             <div className="col-span-1 md:col-span-2 text-left md:text-right">
-                                <p className="text-sm font-medium text-black">${order.total.toLocaleString()}</p>
+                                <p className="text-sm font-medium text-black">
+                                    {(order.subtotal && order.subtotal > order.total) ? (
+                                        <>
+                                            <span className="line-through text-zinc-400 text-xs mr-2">${order.subtotal.toLocaleString()}</span>
+                                            ${order.total.toLocaleString()}
+                                        </>
+                                    ) : (
+                                        `$${order.total.toLocaleString()}`
+                                    )}
+                                </p>
                             </div>
 
                             <div className="col-span-1 md:col-span-2 text-left md:text-right">
@@ -291,6 +300,12 @@ export default function AccountPage() {
                                               </div>
                                           ))}
                                         </div>
+                                        {order.discountAmount > 0 && (
+                                            <div className="mt-4 pt-4 border-t border-zinc-100 flex justify-between items-center px-2">
+                                                 <p className="text-xs uppercase tracking-widest text-zinc-400 font-bold">Discount Applied</p>
+                                                 <p className="text-xs font-bold text-red-500">-${order.discountAmount.toLocaleString()}</p>
+                                            </div>
+                                        )}
                                     </div>
                                     
                                     {/* Address - Aligns with Ship To roughly */}

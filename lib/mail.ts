@@ -16,7 +16,9 @@ export const sendOrderConfirmationEmail = async (
   total: number,
   items: MailItem[],
   shippingAddress: string,
-  orderDate: string
+  orderDate: string,
+  subtotal?: number,
+  discountAmount?: number
 ) => {
   if (!process.env.RESEND_API_KEY) {
     console.warn("[Mail] Skipping email: RESEND_API_KEY is not set.");
@@ -124,8 +126,14 @@ export const sendOrderConfirmationEmail = async (
                     <table width="100%" cellpadding="0" cellspacing="0">
                       <tr>
                         <td style="padding-bottom: 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #666;">Subtotal</td>
-                        <td align="right" style="padding-bottom: 12px; font-size: 12px; color: #000;">$${total.toLocaleString()}</td>
+                        <td align="right" style="padding-bottom: 12px; font-size: 12px; color: #000;">$${(subtotal || total).toLocaleString()}</td>
                       </tr>
+                      ${discountAmount && discountAmount > 0 ? `
+                      <tr>
+                        <td style="padding-bottom: 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #666;">Discount</td>
+                        <td align="right" style="padding-bottom: 12px; font-size: 12px; color: #ef4444;">-$${discountAmount.toLocaleString()}</td>
+                      </tr>
+                      ` : ''}
                       <tr>
                         <td style="padding-bottom: 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #666;">Shipping</td>
                         <td align="right" style="padding-bottom: 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #000;">Complimentary</td>

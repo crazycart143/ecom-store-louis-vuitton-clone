@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import { 
   LayoutDashboard, 
   ShoppingBag, 
@@ -26,11 +26,15 @@ import {
   Truck as StatusTruck,
   Package as StockIcon,
   MessageSquare,
-  History
+  History,
+  ShieldAlert,
+  Command
 } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 import { AdminOnboarding } from "@/components/AdminOnboarding";
+import { SpotlightSearch } from "@/components/admin/SpotlightSearch";
+import { Tag } from "lucide-react";
 
 export default function AdminLayout({
   children,
@@ -39,8 +43,13 @@ export default function AdminLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { data: session } = useSession();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+
+  const isOwner = session?.user?.role === "OWNER";
+  const isAdmin = session?.user?.role === "ADMIN";
+  const isManager = session?.user?.role === "MANAGER";
   const [notifications, setNotifications] = useState<any[]>([]);
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -165,17 +174,6 @@ export default function AdminLayout({
     }
   };
 
-  const navigation = [
-    { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
-    { name: "Orders", href: "/admin/orders", icon: ShoppingBag, badge: unfulfilledCount },
-    { name: "Products", href: "/admin/products", icon: Package },
-    { name: "Collections", href: "/admin/collections", icon: Layers },
-    { name: "Customers", href: "/admin/customers", icon: Users },
-    { name: "Media", href: "/admin/media", icon: ImageIcon },
-    { name: "Logs", href: "/admin/logs", icon: History },
-    { name: "Settings", href: "/admin/settings", icon: Settings },
-  ];
-
   const routes: {[key: string]: string} = {
     'dashboard': '/admin',
     'overview': '/admin',
@@ -186,6 +184,10 @@ export default function AdminLayout({
     'customers': '/admin/customers',
     'users': '/admin/customers',
     'settings': '/admin/settings',
+    'staff': '/admin/staff',
+    'team': '/admin/staff',
+    'roles': '/admin/staff',
+    'permissions': '/admin/staff',
     'configuration': '/admin/settings',
     'payments': '/admin/settings?tab=payments',
     'security': '/admin/settings?tab=security',
@@ -227,6 +229,53 @@ export default function AdminLayout({
     }
   };
 
+  const isAdminOrOwner = isOwner || isAdmin;
+  const isManagerOrHigher = isAdminOrOwner || isManager;
+
+  // Custom Navigation Logic
+  const maisonItems = [
+    { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
+    { name: "Orders", href: "/admin/orders", icon: ShoppingBag, badge: unfulfilledCount },
+    { name: "Products", href: "/admin/products", icon: Package },
+    { name: "Collections", href: "/admin/collections", icon: Layers },
+    { name: "Marketing", href: "/admin/marketing", icon: Tag },
+  ];
+  if (isManagerOrHigher) {
+    maisonItems.push({ name: "Customers", href: "/admin/customers", icon: Users });
+  }
+  maisonItems.push({ name: "Media", href: "/admin/media", icon: ImageIcon });
+
+  const adminItems = [];
+  if (isAdminOrOwner) {
+    adminItems.push({ name: "Security Logs", href: "/admin/logs", icon: History });
+    adminItems.push({ name: "Staff & Roles", href: "/admin/staff", icon: ShieldAlert });
+    adminItems.push({ name: "System Settings", href: "/admin/settings", icon: Settings });
+  }
+
+  const navGroups = [
+    {
+      title: "Operations Only",
+      items: maisonItems
+    }
+  ];
+
+  if (adminItems.length > 0) {
+    navGroups.push({
+      title: "Administration",
+      items: adminItems
+    });
+  }
+
+  const [openGroups, setOpenGroups] = useState<string[]>(["Operations Only", "Administration"]);
+
+  const toggleGroup = (title: string) => {
+    setOpenGroups(prev => 
+      prev.includes(title) 
+        ? prev.filter(t => t !== title) 
+        : [...prev, title]
+    );
+  };
+
   return (
     <div className="min-h-screen bg-zinc-50 flex">
       {/* Overlay for mobile sidebar */}
@@ -241,42 +290,60 @@ export default function AdminLayout({
       <aside className={`w-72 bg-zinc-900 text-white flex flex-col fixed inset-y-0 left-0 z-50 transition-transform duration-300 transform print:hidden ${
         isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       }`}>
-        <div className="p-8 flex items-center justify-between border-b border-zinc-800">
+        <div className="p-8 flex items-center justify-between border-b border-zinc-800/50 shrink-0">
           <div className="flex items-center gap-4">
             <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center font-black text-black text-xs shadow-lg">LV</div>
-            <span className="font-serif tracking-[0.2em] text-[13px] uppercase font-bold">Admin Panel</span>
+            <span className="font-black tracking-[0.2em] text-[13px] uppercase">Admin Panel</span>
           </div>
           <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden text-zinc-400 hover:text-white">
             <X size={24} />
           </button>
         </div>
         
-        <nav className="flex-1 p-6 space-y-2 overflow-y-auto">
-          {navigation.map((item) => {
-            const isActive = pathname === item.href;
-            const tourId = item.name.toLowerCase();
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                onClick={() => setIsMobileMenuOpen(false)}
-                data-tour={tourId}
-                className={`flex items-center gap-4 px-5 py-4 rounded-xl text-[12px] uppercase tracking-widest transition-all relative ${
-                  isActive 
-                  ? "bg-white text-black font-black shadow-[0_10px_20px_rgba(255,255,255,0.1)]" 
-                  : "text-zinc-500 hover:text-white hover:bg-zinc-800/50"
-                }`}
+        <nav className="flex-1 px-4 py-8 space-y-8 overflow-y-auto custom-scrollbar scroll-smooth overscroll-contain">
+          {navGroups.map((group) => (
+            <div key={group.title} className="space-y-4">
+              <button 
+                onClick={() => toggleGroup(group.title)}
+                className="w-full flex items-center justify-between px-4 group/header"
               >
-                <item.icon size={20} strokeWidth={isActive ? 2.5 : 1.5} />
-                {item.name}
-                {item.badge !== undefined && item.badge > 0 && (
-                  <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
-                    {item.badge}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
+                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 group-hover/header:text-zinc-300 transition-colors">
+                  {group.title}
+                </h3>
+                <ChevronLeft size={12} className={`text-zinc-600 transition-transform duration-300 ${openGroups.includes(group.title) ? '-rotate-90' : 'rotate-180'}`} />
+              </button>
+
+              {openGroups.includes(group.title) && (
+                <div className="space-y-1 animate-in fade-in slide-in-from-top-1 duration-300">
+                  {group.items.map((item) => {
+                    const isActive = pathname === item.href;
+                    const tourId = item.name.toLowerCase().replace(/ & /g, '-').replace(/ /g, '-');
+                    return (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        data-tour={tourId}
+                        className={`flex items-center gap-4 px-4 py-3.5 rounded-xl text-[12px] uppercase tracking-widest transition-all relative group/item ${
+                          isActive 
+                          ? "bg-white text-black font-black shadow-[0_10px_20px_rgba(255,255,255,0.1)]" 
+                          : "text-zinc-500 hover:text-white hover:bg-zinc-800/30"
+                        }`}
+                      >
+                        <item.icon size={18} strokeWidth={isActive ? 2.5 : 1.5} className={isActive ? "text-black" : "text-zinc-600 group-hover/item:text-zinc-400 transition-colors"} />
+                        {item.name}
+                        {item.badge !== undefined && item.badge > 0 && (
+                          <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center shadow-lg shadow-red-500/20">
+                            {item.badge}
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ))}
         </nav>
 
         <div className="p-6 border-t border-zinc-800 bg-zinc-900/50 space-y-4">
@@ -302,7 +369,7 @@ export default function AdminLayout({
       </aside>
       
       {/* Main Content */}
-      <main className="flex-1 lg:ml-72 min-w-0 print:ml-0">
+      <main className="flex-1 lg:ml-72 min-w-0 print:ml-0 bg-zinc-50">
         {/* Header */}
         <header className="h-20 bg-white/80 backdrop-blur-md border-b border-zinc-100 px-6 md:px-12 flex items-center justify-between sticky top-0 z-30 print:hidden">
           <div className="flex items-center gap-6">
@@ -314,15 +381,13 @@ export default function AdminLayout({
             </button>
             <div className="hidden md:block relative w-96 z-50" data-tour="search">
                 <div className="flex items-center gap-4 bg-zinc-50 border border-zinc-100 px-5 py-2.5 rounded-xl w-full focus-within:bg-white focus-within:border-black transition-all">
-                <Search size={18} className="text-zinc-400" />
-                <input 
-                    type="text" 
-                    value={searchQuery}
-                    onChange={handleInputChange}
-                    placeholder="Search command (e.g. 'payments')..." 
-                    onKeyDown={handleSearch}
-                    className="bg-transparent border-none focus:outline-none text-[13px] w-full placeholder:text-zinc-400 font-medium"
-                />
+                 <Search size={18} className="text-zinc-400" />
+                 <div className="flex-1 flex items-center justify-between pointer-events-none">
+                    <span className="text-[13px] text-zinc-400 font-medium">Search the Maison...</span>
+                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-zinc-100 border border-zinc-200 text-[10px] font-black tracking-widest text-zinc-400 uppercase">
+                        <Command size={10} /> K
+                    </div>
+                 </div>
                 </div>
                 {/* Search Suggestions Dropdown */}
                 {suggestions.length > 0 && (
@@ -427,10 +492,14 @@ export default function AdminLayout({
 
             <div className="flex items-center gap-3 pl-6 border-l border-zinc-100">
               <div className="hidden sm:block text-right">
-                <p className="text-[12px] font-black text-black uppercase tracking-tight">E-Commerce Manager</p>
+                <p className="text-[12px] font-black text-black uppercase tracking-tight">
+                    {session?.user?.name || "Administrator"}
+                </p>
                 <div className="flex items-center justify-end gap-1.5 mt-0.5">
                     <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-                    <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold">Online</p>
+                    <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold">
+                        {session?.user?.role || "Manager"} • Online
+                    </p>
                 </div>
               </div>
               <div className="w-10 h-10 bg-zinc-100 rounded-full flex items-center justify-center border border-zinc-200">
@@ -442,12 +511,15 @@ export default function AdminLayout({
 
         {/* Dynamic Content */}
         <div className="p-6 md:p-12 max-w-[1600px] mx-auto print:p-0 print:max-w-none" data-tour="dashboard">
-          {children}
+          <Suspense fallback={null}>
+            {children}
+          </Suspense>
         </div>
       </main>
 
       {/* Onboarding Tour */}
       <AdminOnboarding onRestartAction={() => setIsMobileMenuOpen(true)} />
+      <SpotlightSearch />
     </div>
   );
 }

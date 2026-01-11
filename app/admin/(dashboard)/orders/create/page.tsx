@@ -144,7 +144,7 @@ export default function CreateOrder() {
             <ArrowLeft size={18} />
         </Link>
         <div>
-          <h1 className="text-3xl font-serif text-zinc-900 tracking-tight">Create New Order</h1>
+          <h1 className="text-2xl font-black text-zinc-900 tracking-tight">Create New Order</h1>
           <p className="text-[11px] text-zinc-400 uppercase tracking-widest font-black mt-1">Manual order entry system</p>
         </div>
       </div>
@@ -332,7 +332,7 @@ export default function CreateOrder() {
 
             <div className="flex justify-between items-baseline">
               <span className="text-[14px] font-black uppercase tracking-widest text-black">Total Due</span>
-              <span className="text-2xl font-serif text-black">${calculateSubtotal().toLocaleString()}</span>
+              <span className="text-2xl font-black text-black tracking-tight">${calculateSubtotal().toLocaleString()}</span>
             </div>
 
             <div className="grid grid-cols-1 gap-3 pt-4">

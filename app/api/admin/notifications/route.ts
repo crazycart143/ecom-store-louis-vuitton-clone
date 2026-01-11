@@ -7,7 +7,7 @@ export async function GET(req: Request) {
     try {
         const session = await getServerSession(authOptions);
 
-        if (!session || session.user.role !== "ADMIN") {
+        if (!session || !["OWNER", "ADMIN", "MANAGER", "STAFF"].includes(session.user.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -48,7 +48,7 @@ export async function PATCH(req: Request) {
     try {
         const session = await getServerSession(authOptions);
 
-        if (!session || session.user.role !== "ADMIN") {
+        if (!session || !["OWNER", "ADMIN", "MANAGER", "STAFF"].includes(session.user.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -90,7 +90,7 @@ export async function DELETE(req: Request) {
     try {
         const session = await getServerSession(authOptions);
 
-        if (!session || session.user.role !== "ADMIN") {
+        if (!session || !["OWNER", "ADMIN", "MANAGER", "STAFF"].includes(session.user.role)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 

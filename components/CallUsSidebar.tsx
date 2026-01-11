@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Mail, MessageCircle, MessageSquare } from "lucide-react";
 import Link from "next/link";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 interface CallUsSidebarProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface CallUsSidebarProps {
 }
 
 export function CallUsSidebar({ isOpen, onClose }: CallUsSidebarProps) {
+  useScrollLock(isOpen);
   return (
     <AnimatePresence>
       {isOpen && (

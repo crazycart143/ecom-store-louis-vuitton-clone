@@ -8,6 +8,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Heart } from "lucide-react";
 import { motion } from "framer-motion";
+import Image from "next/image";
 
 export default function WishlistPage() {
   const { data: session } = useSession();
@@ -54,17 +55,32 @@ export default function WishlistPage() {
             <div className="space-y-12 pb-20">
               <h1 className="text-3xl font-serif">Your Wishlist</h1>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                {wishlist.map((item) => (
-                  <div key={item.id} className="group text-left space-y-4">
-                    <div className="aspect-4/5 bg-zinc-100 flex items-center justify-center relative overflow-hidden">
-                       <span className="text-[10px] uppercase tracking-widest text-zinc-400">Louis Vuitton Asset</span>
-                    </div>
-                    <div className="space-y-1">
-                      <h3 className="text-sm uppercase font-medium tracking-widest">{item.name}</h3>
-                      <p className="text-xs text-zinc-500">${item.price.toLocaleString()}</p>
-                    </div>
-                  </div>
-                ))}
+                  {wishlist.map((item: any) => {
+                    const productImage = typeof item.image === 'string' 
+                      ? item.image 
+                      : (item.images?.[0]?.url || "/images/placeholder.jpg");
+                    
+                    return (
+                      <Link 
+                        key={item.id} 
+                        href={`/product/${item.handle || item.id}`}
+                        className="group text-left space-y-4 block"
+                      >
+                        <div className="aspect-4/5 bg-zinc-100 flex items-center justify-center relative overflow-hidden">
+                           <Image 
+                              src={productImage}
+                              alt={item.name}
+                              fill
+                              className="object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out"
+                           />
+                        </div>
+                        <div className="space-y-1">
+                          <h3 className="text-sm uppercase font-medium tracking-widest">{item.name}</h3>
+                          <p className="text-xs text-zinc-500">${item.price.toLocaleString()}</p>
+                        </div>
+                      </Link>
+                    );
+                  })}
               </div>
             </div>
           )}

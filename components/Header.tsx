@@ -145,12 +145,12 @@ export function Header({ variant = "transparent" }: { variant?: "transparent" | 
             <User size={18} className="md:w-5 md:h-5" />
             {session && <span className="hidden md:inline text-[10px] uppercase tracking-widest">{session.user?.name?.split(' ')[0]}</span>}
           </Link>
-          {session?.user && session.user.role === "ADMIN" && (
+          {session?.user && ["ADMIN", "OWNER", "MANAGER"].includes(session.user.role as string) && (
             <Link 
               href="/admin" 
-              className="bg-black text-white px-2 md:px-3 py-1 rounded-full text-[8px] md:text-[9px] uppercase tracking-widest font-bold hover:bg-zinc-800 transition-all"
+              className="bg-black text-white px-3 py-1.5 rounded-full text-[9px] uppercase tracking-widest font-bold hover:bg-zinc-800 transition-all ml-2"
             >
-              Admin
+              Dashboard
             </Link>
           )}
         </div>
