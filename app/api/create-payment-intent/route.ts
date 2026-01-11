@@ -2,10 +2,17 @@ import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 export async function POST(req: Request) {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+        return NextResponse.json({ error: "Authentication required to complete purchase" }, { status: 401 });
+    }
+
     try {
         const { items, email, userId, shippingDetails, discountCode } = await req.json();
 

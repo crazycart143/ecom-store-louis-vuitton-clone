@@ -8,6 +8,7 @@ import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ChevronRight, Truck, ShieldCheck, RefreshCw, Loader2, Plus, ArrowRight, X } from "lucide-react";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements } from "@stripe/react-stripe-js";
@@ -16,10 +17,18 @@ import CheckoutForm from "@/components/CheckoutForm";
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 export default function CheckoutPage() {
+  const router = useRouter();
   const { cart, total } = useCart();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [isLoading, setIsLoading] = useState(false);
   const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
+
+  // Force login
+  useEffect(() => {
+    if (status === "unauthenticated") {
+        router.push("/login?callbackUrl=/checkout");
+    }
+  }, [status, router]);
   
   const [formData, setFormData] = useState({
     firstName: "",
@@ -155,6 +164,14 @@ export default function CheckoutPage() {
     }
   };
 
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <Loader2 className="animate-spin text-zinc-300" size={32} />
+      </div>
+    );
+  }
+
   if (cart.length === 0 && !isLoading) {
     return (
       <main className="min-h-screen bg-white">
@@ -284,20 +301,6 @@ export default function CheckoutPage() {
                     </div>
                   </div>
 
-                  {!session && (
-                    <div className="space-y-2">
-                      <label className="text-[10px] uppercase tracking-widest text-zinc-500 font-medium ml-1">Email Address</label>
-                      <input 
-                        required={!session}
-                        type="email" 
-                        name="email"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        placeholder="email@example.com" 
-                        className="w-full px-5 py-4 bg-white border border-zinc-100 rounded-xl text-sm focus:border-black outline-none transition-all shadow-xs"
-                      />
-                    </div>
-                  )}
 
                   <div className="space-y-2">
                     <label className="text-[10px] uppercase tracking-widest text-zinc-500 font-medium ml-1">Address</label>

@@ -17,7 +17,11 @@ export function Cart() {
   const handleCheckout = () => {
     if (cart.length === 0) return;
     toggleCart();
-    router.push("/checkout");
+    if (!session) {
+      router.push("/login?callbackUrl=/checkout");
+    } else {
+      router.push("/checkout");
+    }
   };
 
   return (
@@ -114,7 +118,7 @@ export function Cart() {
                 <div className="space-y-4">
                   {!session && (
                     <p className="text-[10px] text-center text-zinc-400 italic">
-                      Checking out as guest. <Link href="/login" className="underline text-black">Login</Link> for order history.
+                      Please <Link href="/login" className="underline text-black">Login</Link> to proceed with your creation.
                     </p>
                   )}
                   <button 
