@@ -1,6 +1,17 @@
 import clientPromise from "@/lib/mongodb";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 
 export async function GET() {
+    const session = await getServerSession(authOptions);
+
+    if (!session || session.user.role !== "OWNER") {
+        return new Response(JSON.stringify({ error: "Access Denied: Highly classification required" }), {
+            status: 403,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+
     try {
         const client = await clientPromise;
         const db = client.db();

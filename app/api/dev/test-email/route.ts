@@ -1,7 +1,14 @@
 import { sendOrderConfirmationEmail } from "@/lib/mail";
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 
 export async function GET() {
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== "OWNER") {
+        return NextResponse.json({ error: "Access Denied" }, { status: 403 });
+    }
+
     try {
         await sendOrderConfirmationEmail(
             "admin@louisvuitton.com",

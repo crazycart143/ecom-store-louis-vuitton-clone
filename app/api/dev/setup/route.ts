@@ -1,11 +1,23 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import bcrypt from "bcryptjs";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 
 export async function GET() {
     try {
         const client = await clientPromise;
         const db = client.db();
+
+        // Security check: Only allow setup if no admin exists, OR if session is OWNER
+        const adminExists = await db.collection("User").findOne({ role: { $in: ["ADMIN", "OWNER"] } });
+        if (adminExists) {
+            const session = await getServerSession(authOptions);
+            if (!session || session.user.role !== "OWNER") {
+                return NextResponse.json({ error: "Access Denied: Setup locked" }, { status: 403 });
+            }
+        }
+
 
         const email = "admin@louisvuitton.com";
         const password = await bcrypt.hash("Admin123!", 10);
